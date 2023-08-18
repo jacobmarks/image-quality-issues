@@ -1,4 +1,4 @@
-## Common Issues Plugin
+## Image Quality Issues Plugin
 
 ![2023-08-07 15 56 33](https://github.com/voxel51/fiftyone-plugins/assets/12500356/ff2302b3-e1ab-4aa0-b599-dd11c27952bb)
 
