@@ -3,7 +3,7 @@ fiftyone:
 name: "image_issues"
 version: "1.0.0"
 description: "Find common image quality issues in your datasets"
-url: "https://github.com/voxel51/fiftyone-plugins/blob/main/plugins/common_issues/README.md"
+url: "https://github.com/jacobmarks/image-quality-issues/blob/main/README.md"
 operators:
   - compute_brightness
   - compute_aspect_ratio
