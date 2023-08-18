@@ -18,8 +18,8 @@ It is straightforward to add support for other types of issues!
 
 ```shell
 fiftyone plugins download \
-    https://github.com/voxel51/fiftyone-plugins \
-    --plugin-names @voxel51/common_issues
+    https://github.com/jacobmarks/image-quality-issues/ \
+    --plugin-names image_issues
 ```
 
 ## Operators
