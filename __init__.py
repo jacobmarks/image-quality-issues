@@ -1,11 +1,15 @@
 """Common Issues plugin.
 
-| Copyright 2017-2023, Voxel51, Inc.
-| `voxel51.com <https://voxel51.com/>`_
+This plugin provides operators to compute common issues in image datasets.
+It is open source, and is adapted heavily from leading open source projects
+listed in the README.
 |
 """
 
 import numpy as np
+
+
+import cv2
 from PIL import Image, ImageStat
 
 
@@ -24,17 +28,16 @@ def get_filepath(sample):
 def compute_sample_brightness(sample):
     image = Image.open(get_filepath(sample))
     stat = ImageStat.Stat(image)
-    try:
+    if sample.metadata.num_channels == 3:
         r, g, b = stat.mean
-    except:
-        r, g, b = (
-            stat.mean[0],
-            stat.mean[0],
-            stat.mean[0],
-        )
+    else:
+        mean = stat.mean[0]
+        r, g, b = (mean, mean, mean,)
 
     ## equation from here:
     ## https://www.nbdtech.com/Blog/archive/2008/04/27/calculating-the-perceived-brightness-of-a-color.aspx
+    ## and here:
+    ## https://github.com/cleanlab/cleanvision/blob/72a1535019fe7b4636d43a9ef4e8e0060b8d66ec/src/cleanvision/issue_managers/image_property.py#L95
     brightness = (
         np.sqrt(0.241 * r**2 + 0.691 * g**2 + 0.068 * b**2) / 255
     )
@@ -69,8 +72,8 @@ class ComputeBrightness(foo.Operator):
 
 def compute_sample_aspect_ratio(sample):
     width, height = sample.metadata.width, sample.metadata.height
-    size_score = min(width / height, height / width)
-    return size_score
+    ratio = width / height
+    return min(ratio, 1 / ratio)
 
 
 def compute_dataset_aspect_ratio(dataset):
@@ -97,6 +100,41 @@ class ComputeAspectRatio(foo.Operator):
 
     def execute(self, ctx):
         compute_dataset_aspect_ratio(ctx.dataset)
+        ctx.trigger("reload_dataset")
+
+
+def compute_sample_blurriness(sample):
+    image = cv2.imread(sample.filepath)
+    # Convert the image to grayscale
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+    variance = laplacian.var()
+    return variance
+
+
+def compute_dataset_blurriness(dataset):
+    dataset.add_sample_field("blurriness", fo.FloatField)
+    for sample in dataset.iter_samples(autosave=True):
+        blurriness = compute_sample_blurriness(sample)
+        sample["blurriness"] = blurriness
+
+
+class ComputeBlurriness(foo.Operator):
+    @property
+    def config(self):
+        return foo.OperatorConfig(
+            name="compute_blurriness",
+            label="Common Issues: compute blurriness",
+            dynamic=True,
+        )
+
+    def resolve_input(self, ctx):
+        inputs = types.Object()
+        inputs.message("compute blurriness", label="compute blurriness")
+        return types.Property(inputs)
+
+    def execute(self, ctx):
+        compute_dataset_blurriness(ctx.dataset)
         ctx.trigger("reload_dataset")
 
 
@@ -131,6 +169,41 @@ class ComputeEntropy(foo.Operator):
         ctx.trigger("reload_dataset")
 
 
+def compute_sample_exposure(sample):
+    image = cv2.imread(sample.filepath)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    histogram = cv2.calcHist([gray], [0], None, [256], [0,256])
+    normalized_histogram = histogram.ravel()/histogram.max()
+    return normalized_histogram
+
+
+def compute_dataset_exposure(dataset):
+    dataset.add_sample_field("exposure", fo.ArrayField)
+    for sample in dataset.iter_samples(autosave=True):
+        exposure = compute_sample_exposure(sample)
+        sample["min_exposure"] = exposure[0]
+        sample["max_exposure"] = exposure[-1]
+
+    
+class ComputeExposure(foo.Operator):
+    @property
+    def config(self):
+        return foo.OperatorConfig(
+            name="compute_exposure",
+            label="Common Issues: compute exposure",
+            dynamic=True,
+        )
+
+    def resolve_input(self, ctx):
+        inputs = types.Object()
+        inputs.message("compute exposure", label="compute exposure")
+        return types.Property(inputs)
+
+    def execute(self, ctx):
+        compute_dataset_exposure(ctx.dataset)
+        ctx.trigger("reload_dataset")
+        
+
 def _need_to_compute(dataset, field_name):
     if field_name in list(dataset.get_field_schema().keys()):
         return False
@@ -145,6 +218,10 @@ def _run_computation(dataset, field_name):
         compute_dataset_aspect_ratio(dataset)
     elif field_name == "entropy":
         compute_dataset_entropy(dataset)
+    elif field_name == "blurriness":
+        compute_dataset_blurriness(dataset)
+    elif field_name in ["min_exposure", "max_exposure"]:
+        compute_dataset_exposure(dataset)
     else:
         raise ValueError("Unknown field name %s" % field_name)
 
@@ -185,8 +262,20 @@ def find_weird_aspect_ratio_images(dataset, threshold=0.5):
     )
 
 
+def find_blurry_images(dataset, threshold=100.0):
+    find_issue_images(dataset, threshold, "blurriness", "blurry", lt=True)
+
+
 def find_low_entropy_images(dataset, threshold=5.0):
     find_issue_images(dataset, threshold, "entropy", "low_entropy", lt=True)
+
+
+def find_low_exposure_images(dataset, threshold=0.1):
+    find_issue_images(dataset, threshold, "min_exposure", "low_exposure", lt=True)
+
+
+def find_high_exposure_images(dataset, threshold=0.7):
+    find_issue_images(dataset, threshold, "max_exposure", "high_exposure", lt=False)
 
 
 class FindIssues(foo.Operator):
@@ -266,6 +355,24 @@ class FindIssues(foo.Operator):
                 view=threshold_view,
             )
 
+        
+        #### BLURRY IMAGES ####
+        inputs.bool(
+            "blurry",
+            default=True,
+            label="Find blurry images in the dataset",
+            view=types.CheckboxView(),
+        )
+
+        if ctx.params.get("blurry", False) == True:
+            inputs.float(
+                "blurry_threshold",
+                default=100.0,
+                label="blurriness threshold",
+                view=threshold_view,
+            )
+
+
         #### LOW ENTROPY IMAGES ####
         inputs.bool(
             "low_entropy",
@@ -279,6 +386,40 @@ class FindIssues(foo.Operator):
                 "low_entropy_threshold",
                 default=5.0,
                 label="low entropy threshold",
+                view=threshold_view,
+            )
+
+        
+        #### LOW EXPOSURE IMAGES ####
+        inputs.bool(
+            "low_exposure",
+            default=True,
+            label="Find low exposure images in the dataset",
+            view=types.CheckboxView(),
+        )
+
+        if ctx.params.get("low_exposure", False) == True:
+            inputs.float(
+                "low_exposure_threshold",
+                default=0.1,
+                label="low exposure threshold",
+                view=threshold_view,
+            )
+
+
+        #### HIGH EXPOSURE IMAGES ####
+        inputs.bool(
+            "high_exposure",
+            default=True,
+            label="Find high exposure images in the dataset",
+            view=types.CheckboxView(),
+        )
+
+        if ctx.params.get("high_exposure", False) == True:
+            inputs.float(
+                "high_exposure_threshold",
+                default=0.7,
+                label="high exposure threshold",
                 view=threshold_view,
             )
 
@@ -298,16 +439,31 @@ class FindIssues(foo.Operator):
             find_weird_aspect_ratio_images(
                 ctx.dataset, weird_aspect_ratio_threshold
             )
+        if ctx.params.get("blurry", False) == True:
+            blurry_threshold = ctx.params.get("blurry_threshold", 100.0)
+            find_blurry_images(ctx.dataset, blurry_threshold)
         if ctx.params.get("low_entropy", False) == True:
             low_entropy_threshold = ctx.params.get(
                 "low_entropy_threshold", 5.0
             )
             find_low_entropy_images(ctx.dataset, low_entropy_threshold)
+        if ctx.params.get("low_exposure", False) == True:
+            low_exposure_threshold = ctx.params.get(
+                "low_exposure_threshold", 0.1
+            )
+            find_low_exposure_images(ctx.dataset, low_exposure_threshold)
+        if ctx.params.get("high_exposure", False) == True:
+            high_exposure_threshold = ctx.params.get(
+                "high_exposure_threshold", 0.7
+            )
+            find_high_exposure_images(ctx.dataset, high_exposure_threshold)
         ctx.trigger("reload_dataset")
 
 
 def register(plugin):
     plugin.register(ComputeBrightness)
     plugin.register(ComputeAspectRatio)
+    plugin.register(ComputeBlurriness)
     plugin.register(ComputeEntropy)
+    plugin.register(ComputeExposure)
     plugin.register(FindIssues)

@@ -7,5 +7,7 @@ url: "https://github.com/jacobmarks/image-quality-issues/blob/main/README.md"
 operators:
   - compute_brightness
   - compute_aspect_ratio
+  - compute_blurriness
   - compute_entropy
+  - compute_exposure
   - find_issues
