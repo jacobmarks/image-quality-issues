@@ -19,16 +19,10 @@ With this plugin, you can find the following issues:
 ## Installation
 
 ```shell
-fiftyone plugins download \
-    https://github.com/jacobmarks/image-quality-issues/ \
-    --plugin-names image_issues
+fiftyone plugins download https://github.com/jacobmarks/image-quality-issues/
 ```
 
 ## Operators
-
-### `compute_brightness`
-
-Computes the brightness of all images in the dataset.
 
 ### `compute_aspect_ratio`
 
@@ -37,6 +31,11 @@ Computes the aspect ratio of all images in the dataset.
 ### `compute_blurriness`
 
 Computes the blurriness of all images in the dataset.
+
+
+### `compute_brightness`
+
+Computes the brightness of all images in the dataset.
 
 ### `compute_contrast`
 
