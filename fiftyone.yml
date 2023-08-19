@@ -11,5 +11,6 @@ operators:
   - compute_contrast
   - compute_entropy
   - compute_exposure
+  - compute_salt_and_pepper
   - compute_saturation
   - find_issues

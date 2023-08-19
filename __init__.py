@@ -272,7 +272,53 @@ class ComputeExposure(foo.Operator):
     def execute(self, ctx):
         compute_dataset_exposure(ctx.dataset)
         ctx.trigger("reload_dataset")
+
+
+def compute_sample_salt_and_pepper(sample):
+    '''
+    Computes the salt and pepper noise of an image.
+    '''
+    SALT_THRESHOLD = 245
+    PEPPER_THRESHOLD = 10
+
+    image = cv2.imread(sample.filepath, cv2.IMREAD_GRAYSCALE)
+
+    # Identify salt-and-pepper pixels
+    salt_pixels = (image >= SALT_THRESHOLD)
+    pepper_pixels = (image <= PEPPER_THRESHOLD)
+
+    # Calculate the percentage of salt-and-pepper pixels
+    total_salt_pepper_pixels = np.sum(salt_pixels) + np.sum(pepper_pixels)
+    total_pixels = image.size
+    noise_percentage = total_salt_pepper_pixels / total_pixels * 100
+    return noise_percentage
+
+
+def compute_dataset_salt_and_pepper(dataset):
+    dataset.add_sample_field("salt_and_pepper", fo.FloatField)
+    for sample in dataset.iter_samples(autosave=True):
+        salt_and_pepper = compute_sample_salt_and_pepper(sample)
+        sample["salt_and_pepper"] = salt_and_pepper
         
+
+class ComputeSaltAndPepper(foo.Operator):
+    @property
+    def config(self):
+        return foo.OperatorConfig(
+            name="compute_salt_and_pepper",
+            label="Common Issues: compute salt and pepper",
+            dynamic=True,
+        )
+
+    def resolve_input(self, ctx):
+        inputs = types.Object()
+        inputs.message("compute salt and pepper", label="compute salt and pepper")
+        return types.Property(inputs)
+
+    def execute(self, ctx):
+        compute_dataset_salt_and_pepper(ctx.dataset)
+        ctx.trigger("reload_dataset")
+
 
 def _need_to_compute(dataset, field_name):
     if field_name in list(dataset.get_field_schema().keys()):
@@ -296,6 +342,8 @@ def _run_computation(dataset, field_name):
         compute_dataset_contrast(dataset)
     elif field_name == "saturation":
         compute_dataset_saturation(dataset)
+    elif field_name == "salt_and_pepper":
+        compute_dataset_salt_and_pepper(dataset)
     else:
         raise ValueError("Unknown field name %s" % field_name)
 
@@ -646,5 +694,6 @@ def register(plugin):
     plugin.register(ComputeContrast)
     plugin.register(ComputeEntropy)
     plugin.register(ComputeExposure)
+    plugin.register(ComputeSaltAndPepper)
     plugin.register(ComputeSaturation)
     plugin.register(FindIssues)
