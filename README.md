@@ -13,6 +13,7 @@ With this plugin, you can find the following issues:
 -   Contrast: find images with high or low contrast
 -   Entropy: find images with low entropy
 -   Exposure: find overexposed and underexposed images
+-   Illumination: find images with uneven illumination
 -   Noise: find images with high salt and pepper noise
 -   Saturation: find images with low and high saturation
 
@@ -58,6 +59,11 @@ Computes the salt and pepper noise of all images in the dataset.
 ### `compute_saturation`
 
 Computes the saturation of all images in the dataset.
+
+
+### `compute_vignetting`
+
+Computes the vignetting of all images in the dataset.
 
 ### `find_issues`
 

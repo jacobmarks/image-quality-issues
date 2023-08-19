@@ -320,6 +320,55 @@ class ComputeSaltAndPepper(foo.Operator):
         ctx.trigger("reload_dataset")
 
 
+
+def compute_sample_vignetting(sample):
+    # Read the image
+    image = cv2.imread(sample.filepath, cv2.IMREAD_GRAYSCALE)
+
+    # Get the image center
+    center_y, center_x = np.array(image.shape) / 2
+
+    # Calculate the maximum radius
+    max_radius = np.min([center_x, center_y])
+
+    # Create a meshgrid for calculating distances
+    y, x = np.ogrid[-center_y:image.shape[0]-center_y, -center_x:image.shape[1]-center_x]
+    distances = np.sqrt(x**2 + y**2)
+
+    # Calculate the radial intensity profile
+    radial_profile = np.array([np.mean(image[distances < r]) for r in range(int(max_radius))])
+
+    # Analyze the profile for a drop-off
+    drop_off_percentage = (radial_profile[0] - radial_profile[-1]) / radial_profile[0] * 100
+    return drop_off_percentage
+
+
+def compute_dataset_vignetting(dataset):
+    dataset.add_sample_field("vignetting", fo.FloatField)
+    for sample in dataset.iter_samples(autosave=True):
+        vignetting = compute_sample_vignetting(sample)
+        sample["vignetting"] = vignetting
+
+
+class ComputeVignetting(foo.Operator):
+    @property
+    def config(self):
+        return foo.OperatorConfig(
+            name="compute_vignetting",
+            label="Common Issues: compute vignetting",
+            dynamic=True,
+        )
+
+    def resolve_input(self, ctx):
+        inputs = types.Object()
+        inputs.message("compute vignetting", label="compute vignetting")
+        return types.Property(inputs)
+
+    def execute(self, ctx):
+        compute_dataset_vignetting(ctx.dataset)
+        ctx.trigger("reload_dataset")
+
+
 def _need_to_compute(dataset, field_name):
     if field_name in list(dataset.get_field_schema().keys()):
         return False
@@ -344,6 +393,8 @@ def _run_computation(dataset, field_name):
         compute_dataset_saturation(dataset)
     elif field_name == "salt_and_pepper":
         compute_dataset_salt_and_pepper(dataset)
+    elif field_name == "vignetting":
+        compute_dataset_vignetting(dataset)
     else:
         raise ValueError("Unknown field name %s" % field_name)
 
@@ -414,6 +465,10 @@ def find_low_saturation_images(dataset, threshold=40.):
 
 def find_high_saturation_images(dataset, threshold=200.):
     find_issue_images(dataset, threshold, "saturation", "high_saturation", lt=False)
+
+
+def uneven_illumination_images(dataset, threshold=10.):
+    find_issue_images(dataset, threshold, "vignetting", "uneven_illumination", lt=False)
 
 
 class FindIssues(foo.Operator):
@@ -630,6 +685,23 @@ class FindIssues(foo.Operator):
             )
 
 
+        #### UNEVEN ILLUMINATION IMAGES ####
+        inputs.bool(
+            "uneven_illumination",
+            default=True,
+            label="Find uneven illumination images in the dataset",
+            view=types.CheckboxView(),
+        )
+
+        if ctx.params.get("uneven_illumination", False) == True:
+            inputs.float(
+                "vignetting_threshold",
+                default=10.,
+                label="vignetting threshold",
+                view=threshold_view,
+            )
+
+
         return types.Property(inputs, view=form_view)
 
     def execute(self, ctx):
@@ -684,6 +756,12 @@ class FindIssues(foo.Operator):
                 "high_saturation_threshold", 200.
             )
             find_high_saturation_images(ctx.dataset, high_saturation_threshold)
+        if ctx.params.get("uneven_illumination", False) == True:
+            vignetting_threshold = ctx.params.get(
+                "vignetting_threshold", 10.
+            )
+            uneven_illumination_images(ctx.dataset, vignetting_threshold)
+        
         ctx.trigger("reload_dataset")
 
 
@@ -696,4 +774,5 @@ def register(plugin):
     plugin.register(ComputeExposure)
     plugin.register(ComputeSaltAndPepper)
     plugin.register(ComputeSaturation)
+    plugin.register(ComputeVignetting)
     plugin.register(FindIssues)

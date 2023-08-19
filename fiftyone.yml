@@ -13,4 +13,5 @@ operators:
   - compute_exposure
   - compute_salt_and_pepper
   - compute_saturation
+  - compute_vignetting
   - find_issues
