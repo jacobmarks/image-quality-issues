@@ -3,19 +3,16 @@
 This plugin is a Python plugin that allows you to find common issues in your
 image datasets.
 
-With this plugin, you can:
+With this plugin, you can find the following issues:
 
--   Find bright images
--   Find dark images
--   Find weird aspect ratios
--   Find blurry images
--   Find high contrast images
--   Find low contrast images
--   Find low entropy images
--   Find underexposed images
--   Find overexposed images
+-   Aspect ratio: find images with weird aspect ratios
+-   Blurriness: find blurry images
+-   Brightness: find bright and dark images
+-   Contrast: find images with high or low contrast
+-   Entropy: find images with low entropy
+-   Exposure: find overexposed and underexposed images
+-   Saturation: find images with low and high saturation
 
-It is straightforward to add support for other types of issues!
 
 ## Installation
 
@@ -50,6 +47,10 @@ Computes the entropy of all images in the dataset.
 ### `compute_exposure`
 
 Computes the exposure of all images in the dataset.
+
+### `compute_saturation`
+
+Computes the saturation of all images in the dataset.
 
 ### `find_issues`
 

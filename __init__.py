@@ -174,6 +174,39 @@ class ComputeContrast(foo.Operator):
         ctx.trigger("reload_dataset")
 
 
+def compute_sample_saturation(sample):
+    image = cv2.imread(sample.filepath)
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    saturation = hsv[:, :, 1]
+    return np.mean(saturation)
+
+
+def compute_dataset_saturation(dataset):
+    dataset.add_sample_field("saturation", fo.FloatField)
+    for sample in dataset.iter_samples(autosave=True):
+        saturation = compute_sample_saturation(sample)
+        sample["saturation"] = saturation
+
+
+class ComputeSaturation(foo.Operator):
+    @property
+    def config(self):
+        return foo.OperatorConfig(
+            name="compute_saturation",
+            label="Common Issues: compute saturation",
+            dynamic=True,
+        )
+
+    def resolve_input(self, ctx):
+        inputs = types.Object()
+        inputs.message("compute saturation", label="compute saturation")
+        return types.Property(inputs)
+
+    def execute(self, ctx):
+        compute_dataset_saturation(ctx.dataset)
+        ctx.trigger("reload_dataset")
+
+
 def compute_sample_entropy(sample):
     image = Image.open(get_filepath(sample))
     return image.entropy()
@@ -261,6 +294,8 @@ def _run_computation(dataset, field_name):
         compute_dataset_exposure(dataset)
     elif field_name == "contrast":
         compute_dataset_contrast(dataset)
+    elif field_name == "saturation":
+        compute_dataset_saturation(dataset)
     else:
         raise ValueError("Unknown field name %s" % field_name)
 
@@ -323,6 +358,15 @@ def find_low_contrast_images(dataset, threshold=50.):
 
 def find_high_contrast_images(dataset, threshold=200.):
     find_issue_images(dataset, threshold, "contrast", "high_contrast", lt=False)
+
+
+def find_low_saturation_images(dataset, threshold=40.):
+    find_issue_images(dataset, threshold, "saturation", "low_saturation", lt=True)
+
+
+def find_high_saturation_images(dataset, threshold=200.):
+    find_issue_images(dataset, threshold, "saturation", "high_saturation", lt=False)
+
 
 class FindIssues(foo.Operator):
     @property
@@ -503,6 +547,41 @@ class FindIssues(foo.Operator):
                 view=threshold_view,
             )
 
+
+        #### LOW SATURATION IMAGES ####
+        inputs.bool(
+            "low_saturation",
+            default=True,
+            label="Find low saturation images in the dataset",
+            view=types.CheckboxView(),
+        )
+
+        if ctx.params.get("low_saturation", False) == True:
+            inputs.float(
+                "low_saturation_threshold",
+                default=40.,
+                label="low saturation threshold",
+                view=threshold_view,
+            )
+
+
+        #### HIGH SATURATION IMAGES ####
+        inputs.bool(
+            "high_saturation",
+            default=True,
+            label="Find high saturation images in the dataset",
+            view=types.CheckboxView(),
+        )
+
+        if ctx.params.get("high_saturation", False) == True:
+            inputs.float(
+                "high_saturation_threshold",
+                default=200.,
+                label="high saturation threshold",
+                view=threshold_view,
+            )
+
+
         return types.Property(inputs, view=form_view)
 
     def execute(self, ctx):
@@ -547,7 +626,16 @@ class FindIssues(foo.Operator):
                 "high_contrast_threshold", 200.
             )
             find_high_contrast_images(ctx.dataset, high_contrast_threshold)
-        
+        if ctx.params.get("low_saturation", False) == True:
+            low_saturation_threshold = ctx.params.get(
+                "low_saturation_threshold", 40.
+            )
+            find_low_saturation_images(ctx.dataset, low_saturation_threshold)
+        if ctx.params.get("high_saturation", False) == True:
+            high_saturation_threshold = ctx.params.get(
+                "high_saturation_threshold", 200.
+            )
+            find_high_saturation_images(ctx.dataset, high_saturation_threshold)
         ctx.trigger("reload_dataset")
 
 
@@ -558,4 +646,5 @@ def register(plugin):
     plugin.register(ComputeContrast)
     plugin.register(ComputeEntropy)
     plugin.register(ComputeExposure)
+    plugin.register(ComputeSaturation)
     plugin.register(FindIssues)
