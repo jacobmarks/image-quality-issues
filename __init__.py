@@ -104,7 +104,7 @@ class ComputeAspectRatio(foo.Operator):
 
 
 def compute_sample_blurriness(sample):
-    image = cv2.imread(sample.filepath)
+    image = cv2.imread(get_filepath(sample))
     # Convert the image to grayscale
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     laplacian = cv2.Laplacian(gray, cv2.CV_64F)
@@ -139,7 +139,7 @@ class ComputeBlurriness(foo.Operator):
 
 
 def compute_sample_contrast(sample):
-    image = cv2.imread(sample.filepath, cv2.IMREAD_GRAYSCALE)
+    image = cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
     # Calculate the histogram
     histogram, _ = np.histogram(image, bins=256, range=(0, 256))
     min_intensity = np.min(np.where(histogram > 0))
@@ -175,7 +175,7 @@ class ComputeContrast(foo.Operator):
 
 
 def compute_sample_saturation(sample):
-    image = cv2.imread(sample.filepath)
+    image = cv2.imread(get_filepath(sample))
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     saturation = hsv[:, :, 1]
     return np.mean(saturation)
@@ -239,7 +239,7 @@ class ComputeEntropy(foo.Operator):
 
 
 def compute_sample_exposure(sample):
-    image = cv2.imread(sample.filepath)
+    image = cv2.imread(get_filepath(sample))
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     histogram = cv2.calcHist([gray], [0], None, [256], [0,256])
     normalized_histogram = histogram.ravel()/histogram.max()
@@ -281,7 +281,7 @@ def compute_sample_salt_and_pepper(sample):
     SALT_THRESHOLD = 245
     PEPPER_THRESHOLD = 10
 
-    image = cv2.imread(sample.filepath, cv2.IMREAD_GRAYSCALE)
+    image = cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
 
     # Identify salt-and-pepper pixels
     salt_pixels = (image >= SALT_THRESHOLD)
@@ -323,7 +323,7 @@ class ComputeSaltAndPepper(foo.Operator):
 
 def compute_sample_vignetting(sample):
     # Read the image
-    image = cv2.imread(sample.filepath, cv2.IMREAD_GRAYSCALE)
+    image = cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
 
     # Get the image center
     center_y, center_x = np.array(image.shape) / 2
