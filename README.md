@@ -1,5 +1,7 @@
 ## Image Quality Issues Plugin
 
+![image_issues](https://github.com/jacobmarks/image-quality-issues/assets/12500356/d69a14f7-011d-471a-bc17-503eff0f3f6e)
+
 This plugin is a Python plugin that allows you to find common issues in your
 image datasets.
 
