@@ -8,6 +8,7 @@ operators:
   - compute_brightness
   - compute_aspect_ratio
   - compute_blurriness
+  - compute_contrast
   - compute_entropy
   - compute_exposure
   - find_issues

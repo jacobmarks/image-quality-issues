@@ -9,6 +9,8 @@ With this plugin, you can:
 -   Find dark images
 -   Find weird aspect ratios
 -   Find blurry images
+-   Find high contrast images
+-   Find low contrast images
 -   Find low entropy images
 -   Find underexposed images
 -   Find overexposed images
@@ -36,6 +38,10 @@ Computes the aspect ratio of all images in the dataset.
 ### `compute_blurriness`
 
 Computes the blurriness of all images in the dataset.
+
+### `compute_contrast`
+
+Computes the contrast of all images in the dataset.
 
 ### `compute_entropy`
 

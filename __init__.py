@@ -138,6 +138,42 @@ class ComputeBlurriness(foo.Operator):
         ctx.trigger("reload_dataset")
 
 
+def compute_sample_contrast(sample):
+    image = cv2.imread(sample.filepath, cv2.IMREAD_GRAYSCALE)
+    # Calculate the histogram
+    histogram, _ = np.histogram(image, bins=256, range=(0, 256))
+    min_intensity = np.min(np.where(histogram > 0))
+    max_intensity = np.max(np.where(histogram > 0))
+    contrast_range = max_intensity - min_intensity
+    return contrast_range
+
+
+def compute_dataset_contrast(dataset):
+    dataset.add_sample_field("contrast", fo.FloatField)
+    for sample in dataset.iter_samples(autosave=True):
+        contrast = compute_sample_contrast(sample)
+        sample["contrast"] = contrast
+
+
+class ComputeContrast(foo.Operator):
+    @property
+    def config(self):
+        return foo.OperatorConfig(
+            name="compute_contrast",
+            label="Common Issues: compute contrast",
+            dynamic=True,
+        )
+
+    def resolve_input(self, ctx):
+        inputs = types.Object()
+        inputs.message("compute contrast", label="compute contrast")
+        return types.Property(inputs)
+
+    def execute(self, ctx):
+        compute_dataset_contrast(ctx.dataset)
+        ctx.trigger("reload_dataset")
+
+
 def compute_sample_entropy(sample):
     image = Image.open(get_filepath(sample))
     return image.entropy()
@@ -178,7 +214,8 @@ def compute_sample_exposure(sample):
 
 
 def compute_dataset_exposure(dataset):
-    dataset.add_sample_field("exposure", fo.ArrayField)
+    dataset.add_sample_field("min_exposure", fo.ArrayField)
+    dataset.add_sample_field("max_exposure", fo.ArrayField)
     for sample in dataset.iter_samples(autosave=True):
         exposure = compute_sample_exposure(sample)
         sample["min_exposure"] = exposure[0]
@@ -222,6 +259,8 @@ def _run_computation(dataset, field_name):
         compute_dataset_blurriness(dataset)
     elif field_name in ["min_exposure", "max_exposure"]:
         compute_dataset_exposure(dataset)
+    elif field_name == "contrast":
+        compute_dataset_contrast(dataset)
     else:
         raise ValueError("Unknown field name %s" % field_name)
 
@@ -277,6 +316,13 @@ def find_low_exposure_images(dataset, threshold=0.1):
 def find_high_exposure_images(dataset, threshold=0.7):
     find_issue_images(dataset, threshold, "max_exposure", "high_exposure", lt=False)
 
+
+def find_low_contrast_images(dataset, threshold=50.):
+    find_issue_images(dataset, threshold, "contrast", "low_contrast", lt=True)
+
+
+def find_high_contrast_images(dataset, threshold=200.):
+    find_issue_images(dataset, threshold, "contrast", "high_contrast", lt=False)
 
 class FindIssues(foo.Operator):
     @property
@@ -423,6 +469,40 @@ class FindIssues(foo.Operator):
                 view=threshold_view,
             )
 
+
+        #### LOW CONTRAST IMAGES ####
+        inputs.bool(
+            "low_contrast",
+            default=True,
+            label="Find low contrast images in the dataset",
+            view=types.CheckboxView(),
+        )
+
+        if ctx.params.get("low_contrast", False) == True:
+            inputs.float(
+                "low_contrast_threshold",
+                default=50.,
+                label="low contrast threshold",
+                view=threshold_view,
+            )
+
+
+        #### HIGH CONTRAST IMAGES ####
+        inputs.bool(
+            "high_contrast",
+            default=True,
+            label="Find high contrast images in the dataset",
+            view=types.CheckboxView(),
+        )
+
+        if ctx.params.get("high_contrast", False) == True:
+            inputs.float(
+                "high_contrast_threshold",
+                default=200.,
+                label="high contrast threshold",
+                view=threshold_view,
+            )
+
         return types.Property(inputs, view=form_view)
 
     def execute(self, ctx):
@@ -457,13 +537,25 @@ class FindIssues(foo.Operator):
                 "high_exposure_threshold", 0.7
             )
             find_high_exposure_images(ctx.dataset, high_exposure_threshold)
+        if ctx.params.get("low_contrast", False) == True:
+            low_contrast_threshold = ctx.params.get(
+                "low_contrast_threshold", 50.
+            )
+            find_low_contrast_images(ctx.dataset, low_contrast_threshold)
+        if ctx.params.get("high_contrast", False) == True:
+            high_contrast_threshold = ctx.params.get(
+                "high_contrast_threshold", 200.
+            )
+            find_high_contrast_images(ctx.dataset, high_contrast_threshold)
+        
         ctx.trigger("reload_dataset")
 
 
 def register(plugin):
-    plugin.register(ComputeBrightness)
     plugin.register(ComputeAspectRatio)
     plugin.register(ComputeBlurriness)
+    plugin.register(ComputeBrightness)
+    plugin.register(ComputeContrast)
     plugin.register(ComputeEntropy)
     plugin.register(ComputeExposure)
     plugin.register(FindIssues)
