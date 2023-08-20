@@ -10,7 +10,7 @@ import numpy as np
 
 
 import cv2
-from PIL import Image, ImageStat
+from PIL import Image
 
 
 import fiftyone.operators as foo
