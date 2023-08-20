@@ -7,15 +7,15 @@ image datasets.
 
 With this plugin, you can find the following issues:
 
--   Aspect ratio: find images with weird aspect ratios
--   Blurriness: find blurry images
--   Brightness: find bright and dark images
--   Contrast: find images with high or low contrast
--   Entropy: find images with low entropy
--   Exposure: find overexposed and underexposed images
--   Illumination: find images with uneven illumination
--   Noise: find images with high salt and pepper noise
--   Saturation: find images with low and high saturation
+-   📏 Aspect ratio: find images with weird aspect ratios
+-   🌫️ Blurriness: find blurry images
+-   ☀️ Brightness: find bright and dark images
+-   🌓 Contrast: find images with high or low contrast
+-   🔀 Entropy: find images with low entropy
+-   📸 Exposure: find overexposed and underexposed images
+-   🕯️ Illumination: find images with uneven illumination
+-   🧂 Noise: find images with high salt and pepper noise
+-   🌈 Saturation: find images with low and high saturation
 
 
 ## Installation
