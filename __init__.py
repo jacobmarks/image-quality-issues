@@ -13,9 +13,9 @@ import cv2
 from PIL import Image
 
 
+import fiftyone as fo
 import fiftyone.operators as foo
 from fiftyone.operators import types
-import fiftyone as fo
 from fiftyone import ViewField as F
 
 
