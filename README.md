@@ -73,7 +73,7 @@ the threshold for each issue type, and which issue types to check for.
 ## See Also
 Here are some related projects that this plugin is inspired by and adapted from:
 
-- CleanLab's [CleanVision](https://github.com/cleanlab/cleanvision/tree/main)
-- Lakera's [MLTest](https://docs.lakera.ai/)
 - [BlurDetection2](https://github.com/WillBrennan/BlurDetection2) with OpenCV
+- CleanLab's [CleanVision](https://github.com/cleanlab/cleanvision/tree/main)
 - [Exposure_Correction](https://github.com/mahmoudnafifi/Exposure_Correction)
+- Lakera's [MLTest](https://docs.lakera.ai/)
