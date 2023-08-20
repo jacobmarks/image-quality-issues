@@ -27,12 +27,16 @@ def get_filepath(sample):
 
 def compute_sample_brightness(sample):
     image = Image.open(get_filepath(sample))
-    stat = ImageStat.Stat(image)
+    pixels = np.array(image)
     if sample.metadata.num_channels == 3:
-        r, g, b = stat.mean
+        r, g, b = pixels.mean(axis=(0, 1))
     else:
-        mean = stat.mean[0]
-        r, g, b = (mean, mean, mean,)
+        mean = pixels.mean()
+        r, g, b = (
+            mean,
+            mean,
+            mean,
+        )
 
     ## equation from here:
     ## https://www.nbdtech.com/Blog/archive/2008/04/27/calculating-the-perceived-brightness-of-a-color.aspx
@@ -104,9 +108,12 @@ class ComputeAspectRatio(foo.Operator):
 
 
 def compute_sample_blurriness(sample):
+    # pylint: disable=no-member
     image = cv2.imread(get_filepath(sample))
     # Convert the image to grayscale
+    # pylint: disable=no-member
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # pylint: disable=no-member
     laplacian = cv2.Laplacian(gray, cv2.CV_64F)
     variance = laplacian.var()
     return variance
@@ -139,7 +146,9 @@ class ComputeBlurriness(foo.Operator):
 
 
 def compute_sample_contrast(sample):
+    # pylint: disable=no-member
     image = cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
+
     # Calculate the histogram
     histogram, _ = np.histogram(image, bins=256, range=(0, 256))
     min_intensity = np.min(np.where(histogram > 0))
@@ -175,7 +184,9 @@ class ComputeContrast(foo.Operator):
 
 
 def compute_sample_saturation(sample):
+    # pylint: disable=no-member
     image = cv2.imread(get_filepath(sample))
+    # pylint: disable=no-member
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     saturation = hsv[:, :, 1]
     return np.mean(saturation)
@@ -239,10 +250,13 @@ class ComputeEntropy(foo.Operator):
 
 
 def compute_sample_exposure(sample):
+    # pylint: disable=no-member
     image = cv2.imread(get_filepath(sample))
+    # pylint: disable=no-member
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    histogram = cv2.calcHist([gray], [0], None, [256], [0,256])
-    normalized_histogram = histogram.ravel()/histogram.max()
+    # pylint: disable=no-member
+    histogram = cv2.calcHist([gray], [0], None, [256], [0, 256])
+    normalized_histogram = histogram.ravel() / histogram.max()
     return normalized_histogram
 
 
@@ -254,7 +268,7 @@ def compute_dataset_exposure(dataset):
         sample["min_exposure"] = exposure[0]
         sample["max_exposure"] = exposure[-1]
 
-    
+
 class ComputeExposure(foo.Operator):
     @property
     def config(self):
@@ -275,17 +289,18 @@ class ComputeExposure(foo.Operator):
 
 
 def compute_sample_salt_and_pepper(sample):
-    '''
+    """
     Computes the salt and pepper noise of an image.
-    '''
+    """
     SALT_THRESHOLD = 245
     PEPPER_THRESHOLD = 10
 
+    # pylint: disable=no-member
     image = cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
 
     # Identify salt-and-pepper pixels
-    salt_pixels = (image >= SALT_THRESHOLD)
-    pepper_pixels = (image <= PEPPER_THRESHOLD)
+    salt_pixels = image >= SALT_THRESHOLD
+    pepper_pixels = image <= PEPPER_THRESHOLD
 
     # Calculate the percentage of salt-and-pepper pixels
     total_salt_pepper_pixels = np.sum(salt_pixels) + np.sum(pepper_pixels)
@@ -299,7 +314,7 @@ def compute_dataset_salt_and_pepper(dataset):
     for sample in dataset.iter_samples(autosave=True):
         salt_and_pepper = compute_sample_salt_and_pepper(sample)
         sample["salt_and_pepper"] = salt_and_pepper
-        
+
 
 class ComputeSaltAndPepper(foo.Operator):
     @property
@@ -312,7 +327,9 @@ class ComputeSaltAndPepper(foo.Operator):
 
     def resolve_input(self, ctx):
         inputs = types.Object()
-        inputs.message("compute salt and pepper", label="compute salt and pepper")
+        inputs.message(
+            "compute salt and pepper", label="compute salt and pepper"
+        )
         return types.Property(inputs)
 
     def execute(self, ctx):
@@ -320,9 +337,9 @@ class ComputeSaltAndPepper(foo.Operator):
         ctx.trigger("reload_dataset")
 
 
-
 def compute_sample_vignetting(sample):
     # Read the image
+    # pylint: disable=no-member
     image = cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
 
     # Get the image center
@@ -332,14 +349,21 @@ def compute_sample_vignetting(sample):
     max_radius = np.min([center_x, center_y])
 
     # Create a meshgrid for calculating distances
-    y, x = np.ogrid[-center_y:image.shape[0]-center_y, -center_x:image.shape[1]-center_x]
+    y, x = np.ogrid[
+        -center_y : image.shape[0] - center_y,
+        -center_x : image.shape[1] - center_x,
+    ]
     distances = np.sqrt(x**2 + y**2)
 
     # Calculate the radial intensity profile
-    radial_profile = np.array([np.mean(image[distances < r]) for r in range(int(max_radius))])
+    radial_profile = np.array(
+        [np.mean(image[distances < r]) for r in range(int(max_radius))]
+    )
 
     # Analyze the profile for a drop-off
-    drop_off_percentage = (radial_profile[0] - radial_profile[-1]) / radial_profile[0] * 100
+    drop_off_percentage = (
+        (radial_profile[0] - radial_profile[-1]) / radial_profile[0] * 100
+    )
     return drop_off_percentage
 
 
@@ -444,31 +468,43 @@ def find_low_entropy_images(dataset, threshold=5.0):
 
 
 def find_low_exposure_images(dataset, threshold=0.1):
-    find_issue_images(dataset, threshold, "min_exposure", "low_exposure", lt=True)
+    find_issue_images(
+        dataset, threshold, "min_exposure", "low_exposure", lt=True
+    )
 
 
 def find_high_exposure_images(dataset, threshold=0.7):
-    find_issue_images(dataset, threshold, "max_exposure", "high_exposure", lt=False)
+    find_issue_images(
+        dataset, threshold, "max_exposure", "high_exposure", lt=False
+    )
 
 
-def find_low_contrast_images(dataset, threshold=50.):
+def find_low_contrast_images(dataset, threshold=50.0):
     find_issue_images(dataset, threshold, "contrast", "low_contrast", lt=True)
 
 
-def find_high_contrast_images(dataset, threshold=200.):
-    find_issue_images(dataset, threshold, "contrast", "high_contrast", lt=False)
+def find_high_contrast_images(dataset, threshold=200.0):
+    find_issue_images(
+        dataset, threshold, "contrast", "high_contrast", lt=False
+    )
 
 
-def find_low_saturation_images(dataset, threshold=40.):
-    find_issue_images(dataset, threshold, "saturation", "low_saturation", lt=True)
+def find_low_saturation_images(dataset, threshold=40.0):
+    find_issue_images(
+        dataset, threshold, "saturation", "low_saturation", lt=True
+    )
 
 
-def find_high_saturation_images(dataset, threshold=200.):
-    find_issue_images(dataset, threshold, "saturation", "high_saturation", lt=False)
+def find_high_saturation_images(dataset, threshold=200.0):
+    find_issue_images(
+        dataset, threshold, "saturation", "high_saturation", lt=False
+    )
 
 
-def uneven_illumination_images(dataset, threshold=10.):
-    find_issue_images(dataset, threshold, "vignetting", "uneven_illumination", lt=False)
+def uneven_illumination_images(dataset, threshold=10.0):
+    find_issue_images(
+        dataset, threshold, "vignetting", "uneven_illumination", lt=False
+    )
 
 
 class FindIssues(foo.Operator):
@@ -548,7 +584,6 @@ class FindIssues(foo.Operator):
                 view=threshold_view,
             )
 
-        
         #### BLURRY IMAGES ####
         inputs.bool(
             "blurry",
@@ -564,7 +599,6 @@ class FindIssues(foo.Operator):
                 label="blurriness threshold",
                 view=threshold_view,
             )
-
 
         #### LOW ENTROPY IMAGES ####
         inputs.bool(
@@ -582,7 +616,6 @@ class FindIssues(foo.Operator):
                 view=threshold_view,
             )
 
-        
         #### LOW EXPOSURE IMAGES ####
         inputs.bool(
             "low_exposure",
@@ -598,7 +631,6 @@ class FindIssues(foo.Operator):
                 label="low exposure threshold",
                 view=threshold_view,
             )
-
 
         #### HIGH EXPOSURE IMAGES ####
         inputs.bool(
@@ -616,7 +648,6 @@ class FindIssues(foo.Operator):
                 view=threshold_view,
             )
 
-
         #### LOW CONTRAST IMAGES ####
         inputs.bool(
             "low_contrast",
@@ -628,11 +659,10 @@ class FindIssues(foo.Operator):
         if ctx.params.get("low_contrast", False) == True:
             inputs.float(
                 "low_contrast_threshold",
-                default=50.,
+                default=50.0,
                 label="low contrast threshold",
                 view=threshold_view,
             )
-
 
         #### HIGH CONTRAST IMAGES ####
         inputs.bool(
@@ -645,11 +675,10 @@ class FindIssues(foo.Operator):
         if ctx.params.get("high_contrast", False) == True:
             inputs.float(
                 "high_contrast_threshold",
-                default=200.,
+                default=200.0,
                 label="high contrast threshold",
                 view=threshold_view,
             )
-
 
         #### LOW SATURATION IMAGES ####
         inputs.bool(
@@ -662,11 +691,10 @@ class FindIssues(foo.Operator):
         if ctx.params.get("low_saturation", False) == True:
             inputs.float(
                 "low_saturation_threshold",
-                default=40.,
+                default=40.0,
                 label="low saturation threshold",
                 view=threshold_view,
             )
-
 
         #### HIGH SATURATION IMAGES ####
         inputs.bool(
@@ -679,11 +707,10 @@ class FindIssues(foo.Operator):
         if ctx.params.get("high_saturation", False) == True:
             inputs.float(
                 "high_saturation_threshold",
-                default=200.,
+                default=200.0,
                 label="high saturation threshold",
                 view=threshold_view,
             )
-
 
         #### UNEVEN ILLUMINATION IMAGES ####
         inputs.bool(
@@ -696,11 +723,10 @@ class FindIssues(foo.Operator):
         if ctx.params.get("uneven_illumination", False) == True:
             inputs.float(
                 "vignetting_threshold",
-                default=10.,
+                default=10.0,
                 label="vignetting threshold",
                 view=threshold_view,
             )
-
 
         return types.Property(inputs, view=form_view)
 
@@ -738,30 +764,28 @@ class FindIssues(foo.Operator):
             find_high_exposure_images(ctx.dataset, high_exposure_threshold)
         if ctx.params.get("low_contrast", False) == True:
             low_contrast_threshold = ctx.params.get(
-                "low_contrast_threshold", 50.
+                "low_contrast_threshold", 50.0
             )
             find_low_contrast_images(ctx.dataset, low_contrast_threshold)
         if ctx.params.get("high_contrast", False) == True:
             high_contrast_threshold = ctx.params.get(
-                "high_contrast_threshold", 200.
+                "high_contrast_threshold", 200.0
             )
             find_high_contrast_images(ctx.dataset, high_contrast_threshold)
         if ctx.params.get("low_saturation", False) == True:
             low_saturation_threshold = ctx.params.get(
-                "low_saturation_threshold", 40.
+                "low_saturation_threshold", 40.0
             )
             find_low_saturation_images(ctx.dataset, low_saturation_threshold)
         if ctx.params.get("high_saturation", False) == True:
             high_saturation_threshold = ctx.params.get(
-                "high_saturation_threshold", 200.
+                "high_saturation_threshold", 200.0
             )
             find_high_saturation_images(ctx.dataset, high_saturation_threshold)
         if ctx.params.get("uneven_illumination", False) == True:
-            vignetting_threshold = ctx.params.get(
-                "vignetting_threshold", 10.
-            )
+            vignetting_threshold = ctx.params.get("vignetting_threshold", 10.0)
             uneven_illumination_images(ctx.dataset, vignetting_threshold)
-        
+
         ctx.trigger("reload_dataset")
 
 
