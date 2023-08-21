@@ -1,6 +1,6 @@
 fiftyone:
   version: "~0.21.0"
-name: "image_issues"
+name: "@jacobmarks/image_issues"
 version: "1.0.0"
 description: "Find common image quality issues in your datasets"
 url: "https://github.com/jacobmarks/image-quality-issues/blob/main/README.md"
