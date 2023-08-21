@@ -261,8 +261,8 @@ def compute_sample_exposure(sample):
 
 
 def compute_dataset_exposure(dataset):
-    dataset.add_sample_field("min_exposure", fo.ArrayField)
-    dataset.add_sample_field("max_exposure", fo.ArrayField)
+    dataset.add_sample_field("min_exposure", fo.FloatField)
+    dataset.add_sample_field("max_exposure", fo.FloatField)
     for sample in dataset.iter_samples(autosave=True):
         exposure = compute_sample_exposure(sample)
         sample["min_exposure"] = exposure[0]
