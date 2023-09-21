@@ -19,6 +19,84 @@ from fiftyone.operators import types
 from fiftyone import ViewField as F
 
 
+def _execution_mode(ctx, inputs):
+    delegate = ctx.params.get("delegate", False)
+
+    if delegate:
+        description = "Uncheck this box to execute the operation immediately"
+    else:
+        description = "Check this box to delegate execution of this task"
+
+    inputs.bool(
+        "delegate",
+        default=False,
+        required=True,
+        label="Delegate execution?",
+        description=description,
+        view=types.CheckboxView(),
+    )
+
+    if delegate:
+        inputs.view(
+            "notice",
+            types.Notice(
+                label=(
+                    "You've chosen delegated execution. Note that you must "
+                    "have a delegated operation service running in order for "
+                    "this task to be processed. See "
+                    "https://docs.voxel51.com/plugins/index.html#operators "
+                    "for more information"
+                )
+            ),
+        )
+
+
+def _list_target_views(ctx, inputs):
+    has_view = ctx.view != ctx.dataset.view()
+    has_selected = bool(ctx.selected)
+    default_target = None
+    if has_view or has_selected:
+        target_choices = types.RadioGroup()
+        target_choices.add_choice(
+            "DATASET",
+            label="Entire dataset",
+            description="Merge labels for the entire dataset",
+        )
+
+        if has_view:
+            target_choices.add_choice(
+                "CURRENT_VIEW",
+                label="Current view",
+                description="Merge labels for the current view",
+            )
+            default_target = "CURRENT_VIEW"
+
+        if has_selected:
+            target_choices.add_choice(
+                "SELECTED_SAMPLES",
+                label="Selected samples",
+                description="Merge labels for the selected samples",
+            )
+            default_target = "SELECTED_SAMPLES"
+
+        inputs.enum(
+            "target",
+            target_choices.values(),
+            default=default_target,
+            view=target_choices,
+        )
+
+
+def _get_target_view(ctx, target):
+    if target == "SELECTED_SAMPLES":
+        return ctx.view.select(ctx.selected)
+
+    if target == "DATASET":
+        return ctx.dataset
+
+    return ctx.view
+
+
 def get_filepath(sample):
     return (
         sample.local_path if hasattr(sample, "local_path") else sample.filepath
@@ -48,9 +126,11 @@ def compute_sample_brightness(sample):
     return brightness
 
 
-def compute_dataset_brightness(dataset):
+def compute_dataset_brightness(dataset, view=None):
     dataset.add_sample_field("brightness", fo.FloatField)
-    for sample in dataset.iter_samples(autosave=True):
+    if view is None:
+        view = dataset
+    for sample in view.iter_samples(autosave=True):
         brightness = compute_sample_brightness(sample)
         sample["brightness"] = brightness
 
@@ -67,10 +147,13 @@ class ComputeBrightness(foo.Operator):
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute brightness", label="compute brightness")
+        _execution_mode(ctx, inputs)
+        _list_target_views(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
-        compute_dataset_brightness(ctx.dataset)
+        view = _get_target_view(ctx, ctx.params["target"])
+        compute_dataset_brightness(ctx.dataset, view=view)
         ctx.trigger("reload_dataset")
 
 
@@ -80,10 +163,12 @@ def compute_sample_aspect_ratio(sample):
     return min(ratio, 1 / ratio)
 
 
-def compute_dataset_aspect_ratio(dataset):
+def compute_dataset_aspect_ratio(dataset, view=None):
     dataset.compute_metadata()
     dataset.add_sample_field("aspect_ratio", fo.FloatField)
-    for sample in dataset.iter_samples(autosave=True):
+    if view is None:
+        view = dataset
+    for sample in view.iter_samples(autosave=True):
         aspect_ratio = compute_sample_aspect_ratio(sample)
         sample["aspect_ratio"] = aspect_ratio
 
@@ -100,10 +185,13 @@ class ComputeAspectRatio(foo.Operator):
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute aspect ratio", label="compute aspect ratio")
+        _execution_mode(ctx, inputs)
+        _list_target_views(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
-        compute_dataset_aspect_ratio(ctx.dataset)
+        view = _get_target_view(ctx, ctx.params["target"])
+        compute_dataset_aspect_ratio(ctx.dataset, view=view)
         ctx.trigger("reload_dataset")
 
 
@@ -119,9 +207,11 @@ def compute_sample_blurriness(sample):
     return variance
 
 
-def compute_dataset_blurriness(dataset):
+def compute_dataset_blurriness(dataset, view=None):
     dataset.add_sample_field("blurriness", fo.FloatField)
-    for sample in dataset.iter_samples(autosave=True):
+    if view is None:
+        view = dataset
+    for sample in view.iter_samples(autosave=True):
         blurriness = compute_sample_blurriness(sample)
         sample["blurriness"] = blurriness
 
@@ -138,10 +228,13 @@ class ComputeBlurriness(foo.Operator):
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute blurriness", label="compute blurriness")
+        _execution_mode(ctx, inputs)
+        _list_target_views(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
-        compute_dataset_blurriness(ctx.dataset)
+        view = _get_target_view(ctx, ctx.params["target"])
+        compute_dataset_blurriness(ctx.dataset, view=view)
         ctx.trigger("reload_dataset")
 
 
@@ -157,9 +250,11 @@ def compute_sample_contrast(sample):
     return contrast_range
 
 
-def compute_dataset_contrast(dataset):
+def compute_dataset_contrast(dataset, view=None):
     dataset.add_sample_field("contrast", fo.FloatField)
-    for sample in dataset.iter_samples(autosave=True):
+    if view is None:
+        view = dataset
+    for sample in view.iter_samples(autosave=True):
         contrast = compute_sample_contrast(sample)
         sample["contrast"] = contrast
 
@@ -176,10 +271,13 @@ class ComputeContrast(foo.Operator):
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute contrast", label="compute contrast")
+        _execution_mode(ctx, inputs)
+        _list_target_views(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
-        compute_dataset_contrast(ctx.dataset)
+        view = _get_target_view(ctx, ctx.params["target"])
+        compute_dataset_contrast(ctx.dataset, view=view)
         ctx.trigger("reload_dataset")
 
 
@@ -192,9 +290,11 @@ def compute_sample_saturation(sample):
     return np.mean(saturation)
 
 
-def compute_dataset_saturation(dataset):
+def compute_dataset_saturation(dataset, view=None):
     dataset.add_sample_field("saturation", fo.FloatField)
-    for sample in dataset.iter_samples(autosave=True):
+    if view is None:
+        view = dataset
+    for sample in view.iter_samples(autosave=True):
         saturation = compute_sample_saturation(sample)
         sample["saturation"] = saturation
 
@@ -211,10 +311,13 @@ class ComputeSaturation(foo.Operator):
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute saturation", label="compute saturation")
+        _execution_mode(ctx, inputs)
+        _list_target_views(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
-        compute_dataset_saturation(ctx.dataset)
+        view = _get_target_view(ctx, ctx.params["target"])
+        compute_dataset_saturation(ctx.dataset, view=view)
         ctx.trigger("reload_dataset")
 
 
@@ -223,9 +326,11 @@ def compute_sample_entropy(sample):
     return image.entropy()
 
 
-def compute_dataset_entropy(dataset):
+def compute_dataset_entropy(dataset, view=None):
     dataset.add_sample_field("entropy", fo.FloatField)
-    for sample in dataset.iter_samples(autosave=True):
+    if view is None:
+        view = dataset
+    for sample in view.iter_samples(autosave=True):
         entropy = compute_sample_entropy(sample)
         sample["entropy"] = entropy
 
@@ -242,10 +347,13 @@ class ComputeEntropy(foo.Operator):
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute entropy", label="compute entropy")
+        _execution_mode(ctx, inputs)
+        _list_target_views(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
-        compute_dataset_entropy(ctx.dataset)
+        view = _get_target_view(ctx, ctx.params["target"])
+        compute_dataset_entropy(ctx.dataset, view=view)
         ctx.trigger("reload_dataset")
 
 
@@ -260,10 +368,12 @@ def compute_sample_exposure(sample):
     return normalized_histogram
 
 
-def compute_dataset_exposure(dataset):
+def compute_dataset_exposure(dataset, view=None):
     dataset.add_sample_field("min_exposure", fo.FloatField)
     dataset.add_sample_field("max_exposure", fo.FloatField)
-    for sample in dataset.iter_samples(autosave=True):
+    if view is None:
+        view = dataset
+    for sample in view.iter_samples(autosave=True):
         exposure = compute_sample_exposure(sample)
         sample["min_exposure"] = exposure[0]
         sample["max_exposure"] = exposure[-1]
@@ -281,10 +391,13 @@ class ComputeExposure(foo.Operator):
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute exposure", label="compute exposure")
+        _execution_mode(ctx, inputs)
+        _list_target_views(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
-        compute_dataset_exposure(ctx.dataset)
+        view = _get_target_view(ctx, ctx.params["target"])
+        compute_dataset_exposure(ctx.dataset, view=view)
         ctx.trigger("reload_dataset")
 
 
@@ -309,9 +422,11 @@ def compute_sample_salt_and_pepper(sample):
     return noise_percentage
 
 
-def compute_dataset_salt_and_pepper(dataset):
+def compute_dataset_salt_and_pepper(dataset, view=None):
     dataset.add_sample_field("salt_and_pepper", fo.FloatField)
-    for sample in dataset.iter_samples(autosave=True):
+    if view is None:
+        view = dataset
+    for sample in view.iter_samples(autosave=True):
         salt_and_pepper = compute_sample_salt_and_pepper(sample)
         sample["salt_and_pepper"] = salt_and_pepper
 
@@ -330,10 +445,13 @@ class ComputeSaltAndPepper(foo.Operator):
         inputs.message(
             "compute salt and pepper", label="compute salt and pepper"
         )
+        _execution_mode(ctx, inputs)
+        _list_target_views(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
-        compute_dataset_salt_and_pepper(ctx.dataset)
+        view = _get_target_view(ctx, ctx.params["target"])
+        compute_dataset_salt_and_pepper(ctx.dataset, view=view)
         ctx.trigger("reload_dataset")
 
 
@@ -367,9 +485,11 @@ def compute_sample_vignetting(sample):
     return drop_off_percentage
 
 
-def compute_dataset_vignetting(dataset):
+def compute_dataset_vignetting(dataset, view=None):
     dataset.add_sample_field("vignetting", fo.FloatField)
-    for sample in dataset.iter_samples(autosave=True):
+    if view is None:
+        view = dataset
+    for sample in view.iter_samples(autosave=True):
         vignetting = compute_sample_vignetting(sample)
         sample["vignetting"] = vignetting
 
@@ -386,10 +506,13 @@ class ComputeVignetting(foo.Operator):
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute vignetting", label="compute vignetting")
+        _execution_mode(ctx, inputs)
+        _list_target_views(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
-        compute_dataset_vignetting(ctx.dataset)
+        view = _get_target_view(ctx, ctx.params["target"])
+        compute_dataset_vignetting(ctx.dataset, view=view)
         ctx.trigger("reload_dataset")
 
 
