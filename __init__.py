@@ -54,7 +54,7 @@ def _execution_mode(ctx, inputs):
 def _list_target_views(ctx, inputs):
     has_view = ctx.view != ctx.dataset.view()
     has_selected = bool(ctx.selected)
-    default_target = None
+    default_target = "DATASET"
     if has_view or has_selected:
         target_choices = types.RadioGroup()
         target_choices.add_choice(
@@ -85,6 +85,8 @@ def _list_target_views(ctx, inputs):
             default=default_target,
             view=target_choices,
         )
+    else:
+        ctx.params["target"] = "DATASET"
 
 
 def _get_target_view(ctx, target):
@@ -144,6 +146,9 @@ class ComputeBrightness(foo.Operator):
             dynamic=True,
         )
 
+    def resolve_delegation(self, ctx):
+        return ctx.params.get("delegate", False)
+
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute brightness", label="compute brightness")
@@ -181,6 +186,9 @@ class ComputeAspectRatio(foo.Operator):
             label="Common Issues: compute aspect ratio",
             dynamic=True,
         )
+
+    def resolve_delegation(self, ctx):
+        return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
         inputs = types.Object()
@@ -225,6 +233,9 @@ class ComputeBlurriness(foo.Operator):
             dynamic=True,
         )
 
+    def resolve_delegation(self, ctx):
+        return ctx.params.get("delegate", False)
+
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute blurriness", label="compute blurriness")
@@ -268,6 +279,9 @@ class ComputeContrast(foo.Operator):
             dynamic=True,
         )
 
+    def resolve_delegation(self, ctx):
+        return ctx.params.get("delegate", False)
+
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute contrast", label="compute contrast")
@@ -308,6 +322,9 @@ class ComputeSaturation(foo.Operator):
             dynamic=True,
         )
 
+    def resolve_delegation(self, ctx):
+        return ctx.params.get("delegate", False)
+
     def resolve_input(self, ctx):
         inputs = types.Object()
         inputs.message("compute saturation", label="compute saturation")
@@ -343,6 +360,9 @@ class ComputeEntropy(foo.Operator):
             label="Common Issues: compute entropy",
             dynamic=True,
         )
+
+    def resolve_delegation(self, ctx):
+        return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
         inputs = types.Object()
@@ -387,6 +407,9 @@ class ComputeExposure(foo.Operator):
             label="Common Issues: compute exposure",
             dynamic=True,
         )
+
+    def resolve_delegation(self, ctx):
+        return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
         inputs = types.Object()
@@ -439,6 +462,9 @@ class ComputeSaltAndPepper(foo.Operator):
             label="Common Issues: compute salt and pepper",
             dynamic=True,
         )
+
+    def resolve_delegation(self, ctx):
+        return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
         inputs = types.Object()
@@ -502,6 +528,9 @@ class ComputeVignetting(foo.Operator):
             label="Common Issues: compute vignetting",
             dynamic=True,
         )
+
+    def resolve_delegation(self, ctx):
+        return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
         inputs = types.Object()
