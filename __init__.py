@@ -60,14 +60,14 @@ def _list_target_views(ctx, inputs):
         target_choices.add_choice(
             "DATASET",
             label="Entire dataset",
-            description="Merge labels for the entire dataset",
+            description="Run computation for the entire dataset",
         )
 
         if has_view:
             target_choices.add_choice(
                 "CURRENT_VIEW",
                 label="Current view",
-                description="Merge labels for the current view",
+                description="Run computation for the current view",
             )
             default_target = "CURRENT_VIEW"
 
@@ -75,7 +75,7 @@ def _list_target_views(ctx, inputs):
             target_choices.add_choice(
                 "SELECTED_SAMPLES",
                 label="Selected samples",
-                description="Merge labels for the selected samples",
+                description="Run computation for the selected samples",
             )
             default_target = "SELECTED_SAMPLES"
 
