@@ -140,11 +140,13 @@ def compute_dataset_brightness(dataset, view=None):
 class ComputeBrightness(foo.Operator):
     @property
     def config(self):
-        return foo.OperatorConfig(
+        _config = foo.OperatorConfig(
             name="compute_brightness",
             label="Common Issues: compute brightness",
             dynamic=True,
         )
+        _config.icon = "/assets/icon.svg"
+        return _config
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
@@ -181,11 +183,13 @@ def compute_dataset_aspect_ratio(dataset, view=None):
 class ComputeAspectRatio(foo.Operator):
     @property
     def config(self):
-        return foo.OperatorConfig(
+        _config = foo.OperatorConfig(
             name="compute_aspect_ratio",
             label="Common Issues: compute aspect ratio",
             dynamic=True,
         )
+        _config.icon = "/assets/icon.svg"
+        return _config
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
@@ -227,11 +231,13 @@ def compute_dataset_blurriness(dataset, view=None):
 class ComputeBlurriness(foo.Operator):
     @property
     def config(self):
-        return foo.OperatorConfig(
+        _config = foo.OperatorConfig(
             name="compute_blurriness",
             label="Common Issues: compute blurriness",
             dynamic=True,
         )
+        _config.icon = "/assets/icon.svg"
+        return _config
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
@@ -273,11 +279,13 @@ def compute_dataset_contrast(dataset, view=None):
 class ComputeContrast(foo.Operator):
     @property
     def config(self):
-        return foo.OperatorConfig(
+        _config = foo.OperatorConfig(
             name="compute_contrast",
             label="Common Issues: compute contrast",
             dynamic=True,
         )
+        _config.icon = "/assets/icon.svg"
+        return _config
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
@@ -316,11 +324,13 @@ def compute_dataset_saturation(dataset, view=None):
 class ComputeSaturation(foo.Operator):
     @property
     def config(self):
-        return foo.OperatorConfig(
+        _config = foo.OperatorConfig(
             name="compute_saturation",
             label="Common Issues: compute saturation",
             dynamic=True,
         )
+        _config.icon = "/assets/icon.svg"
+        return _config
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
@@ -355,11 +365,13 @@ def compute_dataset_entropy(dataset, view=None):
 class ComputeEntropy(foo.Operator):
     @property
     def config(self):
-        return foo.OperatorConfig(
+        _config = foo.OperatorConfig(
             name="compute_entropy",
             label="Common Issues: compute entropy",
             dynamic=True,
         )
+        _config.icon = "/assets/icon.svg"
+        return _config
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
@@ -402,11 +414,13 @@ def compute_dataset_exposure(dataset, view=None):
 class ComputeExposure(foo.Operator):
     @property
     def config(self):
-        return foo.OperatorConfig(
+        _config = foo.OperatorConfig(
             name="compute_exposure",
             label="Common Issues: compute exposure",
             dynamic=True,
         )
+        _config.icon = "/assets/icon.svg"
+        return _config
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
@@ -457,11 +471,13 @@ def compute_dataset_salt_and_pepper(dataset, view=None):
 class ComputeSaltAndPepper(foo.Operator):
     @property
     def config(self):
-        return foo.OperatorConfig(
+        _config = foo.OperatorConfig(
             name="compute_salt_and_pepper",
             label="Common Issues: compute salt and pepper",
             dynamic=True,
         )
+        _config.icon = "/assets/icon.svg"
+        return _config
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
@@ -523,11 +539,13 @@ def compute_dataset_vignetting(dataset, view=None):
 class ComputeVignetting(foo.Operator):
     @property
     def config(self):
-        return foo.OperatorConfig(
+        _config = foo.OperatorConfig(
             name="compute_vignetting",
             label="Common Issues: compute vignetting",
             dynamic=True,
         )
+        _config.icon = "/assets/icon.svg"
+        return _config
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
@@ -662,11 +680,13 @@ def uneven_illumination_images(dataset, threshold=10.0):
 class FindIssues(foo.Operator):
     @property
     def config(self):
-        return foo.OperatorConfig(
+        _config = foo.OperatorConfig(
             name="find_issues",
             label="Common Issues: find issues",
             dynamic=True,
         )
+        _config.icon = "/assets/icon.svg"
+        return _config
 
     def resolve_input(self, ctx):
         inputs = types.Object()
