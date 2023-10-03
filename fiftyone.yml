@@ -1,5 +1,5 @@
 fiftyone:
-  version: "~0.22.0"
+  version: ">=0.22.0"
 name: "@jacobmarks/image_issues"
 version: "1.0.3"
 description: "Find common image quality issues in your datasets"
