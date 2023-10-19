@@ -570,27 +570,103 @@ def _need_to_compute(dataset, field_name):
         return field_name not in dataset.first()
 
 
+COMPUTATION_MAPPING = {
+    "brightness": compute_dataset_brightness,
+    "aspect_ratio": compute_dataset_aspect_ratio,
+    "entropy": compute_dataset_entropy,
+    "blurriness": compute_dataset_blurriness,
+    "min_exposure": compute_dataset_exposure,
+    "max_exposure": compute_dataset_exposure,
+    "contrast": compute_dataset_contrast,
+    "saturation": compute_dataset_saturation,
+    "salt_and_pepper": compute_dataset_salt_and_pepper,
+    "vignetting": compute_dataset_vignetting,
+}
+
+
 def _run_computation(dataset, field_name):
-    if field_name == "brightness":
-        compute_dataset_brightness(dataset)
-    elif field_name == "aspect_ratio":
-        compute_dataset_aspect_ratio(dataset)
-    elif field_name == "entropy":
-        compute_dataset_entropy(dataset)
-    elif field_name == "blurriness":
-        compute_dataset_blurriness(dataset)
-    elif field_name in ["min_exposure", "max_exposure"]:
-        compute_dataset_exposure(dataset)
-    elif field_name == "contrast":
-        compute_dataset_contrast(dataset)
-    elif field_name == "saturation":
-        compute_dataset_saturation(dataset)
-    elif field_name == "salt_and_pepper":
-        compute_dataset_salt_and_pepper(dataset)
-    elif field_name == "vignetting":
-        compute_dataset_vignetting(dataset)
-    else:
-        raise ValueError("Unknown field name %s" % field_name)
+    COMPUTATION_MAPPING[field_name](dataset)
+
+
+ISSUE_MAPPING = {
+    "bright": {
+        "label": "Bright",
+        "base_property": "brightness",
+        "threshold": 0.55,
+        "lt": False,
+        "description": "Find bright images in the dataset",
+    },
+    "dark": {
+        "label": "Dark",
+        "base_property": "brightness",
+        "threshold": 0.1,
+        "lt": True,
+        "description": "Find dark images in the dataset",
+    },
+    "weird_aspect_ratio": {
+        "label": "Weird Aspect Ratio",
+        "base_property": "aspect_ratio",
+        "threshold": 0.5,
+        "lt": True,
+        "description": "Find weird aspect ratio images in the dataset",
+    },
+    "blurry": {
+        "label": "Blurry",
+        "base_property": "blurriness",
+        "threshold": 100.0,
+        "lt": True,
+        "description": "Find blurry images in the dataset",
+    },
+    "low_entropy": {
+        "label": "Low Entropy",
+        "base_property": "entropy",
+        "threshold": 5.0,
+        "lt": True,
+        "description": "Find low entropy images in the dataset",
+    },
+    "low_exposure": {
+        "label": "Low Exposure",
+        "base_property": "min_exposure",
+        "threshold": 0.1,
+        "lt": True,
+        "description": "Find low exposure images in the dataset",
+    },
+    "high_exposure": {
+        "label": "High Exposure",
+        "base_property": "max_exposure",
+        "threshold": 0.7,
+        "lt": False,
+        "description": "Find high exposure images in the dataset",
+    },
+    "low_contrast": {
+        "label": "Low Contrast",
+        "base_property": "contrast",
+        "threshold": 50.0,
+        "lt": True,
+        "description": "Find low contrast images in the dataset",
+    },
+    "high_contrast": {
+        "label": "High Contrast",
+        "base_property": "contrast",
+        "threshold": 200.0,
+        "lt": False,
+        "description": "Find high contrast images in the dataset",
+    },
+    "low_saturation": {
+        "label": "Low Saturation",
+        "base_property": "saturation",
+        "threshold": 40.0,
+        "lt": True,
+        "description": "Find low saturation images in the dataset",
+    },
+    "high_saturation": {
+        "label": "High Saturation",
+        "base_property": "saturation",
+        "threshold": 200.0,
+        "lt": False,
+        "description": "Find high saturation images in the dataset",
+    },
+}
 
 
 def find_issue_images(
@@ -615,66 +691,65 @@ def find_issue_images(
     view.save()
 
 
-def find_dark_images(dataset, threshold=0.1):
-    find_issue_images(dataset, threshold, "brightness", "dark", lt=True)
-
-
-def find_bright_images(dataset, threshold=0.55):
-    find_issue_images(dataset, threshold, "brightness", "bright", lt=False)
-
-
-def find_weird_aspect_ratio_images(dataset, threshold=0.5):
+def _find_issue_type_images(dataset, issue_type, threshold=None):
+    issue = ISSUE_MAPPING[issue_type]
+    if threshold is None:
+        threshold = issue["threshold"]
     find_issue_images(
-        dataset, threshold, "aspect_ratio", "weird_aspect_ratio", lt=True
+        dataset,
+        threshold,
+        issue["base_property"],
+        issue_type,
+        lt=issue["lt"],
     )
 
 
-def find_blurry_images(dataset, threshold=100.0):
-    find_issue_images(dataset, threshold, "blurriness", "blurry", lt=True)
+def find_dark_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "dark", threshold)
 
 
-def find_low_entropy_images(dataset, threshold=5.0):
-    find_issue_images(dataset, threshold, "entropy", "low_entropy", lt=True)
+def find_bright_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "bright", threshold)
 
 
-def find_low_exposure_images(dataset, threshold=0.1):
-    find_issue_images(
-        dataset, threshold, "min_exposure", "low_exposure", lt=True
-    )
+def find_weird_aspect_ratio_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "weird_aspect_ratio", threshold)
 
 
-def find_high_exposure_images(dataset, threshold=0.7):
-    find_issue_images(
-        dataset, threshold, "max_exposure", "high_exposure", lt=False
-    )
+def find_blurry_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "blurry", threshold)
 
 
-def find_low_contrast_images(dataset, threshold=50.0):
-    find_issue_images(dataset, threshold, "contrast", "low_contrast", lt=True)
+def find_low_entropy_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "low_entropy", threshold)
 
 
-def find_high_contrast_images(dataset, threshold=200.0):
-    find_issue_images(
-        dataset, threshold, "contrast", "high_contrast", lt=False
-    )
+def find_low_exposure_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "low_exposure", threshold)
 
 
-def find_low_saturation_images(dataset, threshold=40.0):
-    find_issue_images(
-        dataset, threshold, "saturation", "low_saturation", lt=True
-    )
+def find_high_exposure_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "high_exposure", threshold)
 
 
-def find_high_saturation_images(dataset, threshold=200.0):
-    find_issue_images(
-        dataset, threshold, "saturation", "high_saturation", lt=False
-    )
+def find_low_contrast_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "low_contrast", threshold)
 
 
-def uneven_illumination_images(dataset, threshold=10.0):
-    find_issue_images(
-        dataset, threshold, "vignetting", "uneven_illumination", lt=False
-    )
+def find_high_contrast_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "high_contrast", threshold)
+
+
+def find_low_saturation_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "low_saturation", threshold)
+
+
+def find_high_saturation_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "high_saturation", threshold)
+
+
+def uneven_illumination_images(dataset, threshold=None):
+    _find_issue_type_images(dataset, "uneven_illumination", threshold)
 
 
 class FindIssues(foo.Operator):
@@ -708,255 +783,32 @@ class FindIssues(foo.Operator):
             }
         )
 
-        #### DARK IMAGES ####
-        inputs.bool(
-            "dark",
-            default=True,
-            label="Find dark images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("dark", False) == True:
-            inputs.float(
-                "dark_threshold",
-                default=0.1,
-                label="darkness threshold",
-                view=threshold_view,
+        for issue in ISSUE_MAPPING:
+            inputs.bool(
+                issue,
+                default=True,
+                label=ISSUE_MAPPING[issue]["label"],
+                view=types.CheckboxView(),
             )
 
-        #### BRIGHT IMAGES ####
-        inputs.bool(
-            "bright",
-            default=True,
-            label="Find bright images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("bright", False) == True:
-            inputs.float(
-                "bright_threshold",
-                default=0.55,
-                label="brightness threshold",
-                view=threshold_view,
-            )
-
-        #### WEIRD ASPECT RATIO IMAGES ####
-        inputs.bool(
-            "weird_aspect_ratio",
-            default=True,
-            label="Find weird aspect ratio images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("weird_aspect_ratio", False) == True:
-            inputs.float(
-                "weird_aspect_ratio_threshold",
-                default=0.5,
-                label="weird aspect ratio threshold",
-                view=threshold_view,
-            )
-
-        #### BLURRY IMAGES ####
-        inputs.bool(
-            "blurry",
-            default=True,
-            label="Find blurry images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("blurry", False) == True:
-            inputs.float(
-                "blurry_threshold",
-                default=100.0,
-                label="blurriness threshold",
-                view=threshold_view,
-            )
-
-        #### LOW ENTROPY IMAGES ####
-        inputs.bool(
-            "low_entropy",
-            default=True,
-            label="Find low entropy images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("low_entropy", False) == True:
-            inputs.float(
-                "low_entropy_threshold",
-                default=5.0,
-                label="low entropy threshold",
-                view=threshold_view,
-            )
-
-        #### LOW EXPOSURE IMAGES ####
-        inputs.bool(
-            "low_exposure",
-            default=True,
-            label="Find low exposure images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("low_exposure", False) == True:
-            inputs.float(
-                "low_exposure_threshold",
-                default=0.1,
-                label="low exposure threshold",
-                view=threshold_view,
-            )
-
-        #### HIGH EXPOSURE IMAGES ####
-        inputs.bool(
-            "high_exposure",
-            default=True,
-            label="Find high exposure images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("high_exposure", False) == True:
-            inputs.float(
-                "high_exposure_threshold",
-                default=0.7,
-                label="high exposure threshold",
-                view=threshold_view,
-            )
-
-        #### LOW CONTRAST IMAGES ####
-        inputs.bool(
-            "low_contrast",
-            default=True,
-            label="Find low contrast images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("low_contrast", False) == True:
-            inputs.float(
-                "low_contrast_threshold",
-                default=50.0,
-                label="low contrast threshold",
-                view=threshold_view,
-            )
-
-        #### HIGH CONTRAST IMAGES ####
-        inputs.bool(
-            "high_contrast",
-            default=True,
-            label="Find high contrast images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("high_contrast", False) == True:
-            inputs.float(
-                "high_contrast_threshold",
-                default=200.0,
-                label="high contrast threshold",
-                view=threshold_view,
-            )
-
-        #### LOW SATURATION IMAGES ####
-        inputs.bool(
-            "low_saturation",
-            default=True,
-            label="Find low saturation images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("low_saturation", False) == True:
-            inputs.float(
-                "low_saturation_threshold",
-                default=40.0,
-                label="low saturation threshold",
-                view=threshold_view,
-            )
-
-        #### HIGH SATURATION IMAGES ####
-        inputs.bool(
-            "high_saturation",
-            default=True,
-            label="Find high saturation images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("high_saturation", False) == True:
-            inputs.float(
-                "high_saturation_threshold",
-                default=200.0,
-                label="high saturation threshold",
-                view=threshold_view,
-            )
-
-        #### UNEVEN ILLUMINATION IMAGES ####
-        inputs.bool(
-            "uneven_illumination",
-            default=True,
-            label="Find uneven illumination images in the dataset",
-            view=types.CheckboxView(),
-        )
-
-        if ctx.params.get("uneven_illumination", False) == True:
-            inputs.float(
-                "vignetting_threshold",
-                default=10.0,
-                label="vignetting threshold",
-                view=threshold_view,
-            )
+            if ctx.params.get(issue, False) == True:
+                inputs.float(
+                    issue + "_threshold",
+                    default=ISSUE_MAPPING[issue]["threshold"],
+                    label=ISSUE_MAPPING[issue]["description"],
+                    view=threshold_view,
+                )
 
         return types.Property(inputs, view=form_view)
 
     def execute(self, ctx):
-        if ctx.params.get("dark", False) == True:
-            dark_threshold = ctx.params.get("dark_threshold", 0.1)
-            find_dark_images(ctx.dataset, dark_threshold)
-        if ctx.params.get("bright", False) == True:
-            bright_threshold = ctx.params.get("bright_threshold", 0.55)
-            find_bright_images(ctx.dataset, bright_threshold)
-        if ctx.params.get("weird_aspect_ratio", False) == True:
-            weird_aspect_ratio_threshold = ctx.params.get(
-                "weird_aspect_ratio_threshold", 2.5
-            )
-            find_weird_aspect_ratio_images(
-                ctx.dataset, weird_aspect_ratio_threshold
-            )
-        if ctx.params.get("blurry", False) == True:
-            blurry_threshold = ctx.params.get("blurry_threshold", 100.0)
-            find_blurry_images(ctx.dataset, blurry_threshold)
-        if ctx.params.get("low_entropy", False) == True:
-            low_entropy_threshold = ctx.params.get(
-                "low_entropy_threshold", 5.0
-            )
-            find_low_entropy_images(ctx.dataset, low_entropy_threshold)
-        if ctx.params.get("low_exposure", False) == True:
-            low_exposure_threshold = ctx.params.get(
-                "low_exposure_threshold", 0.1
-            )
-            find_low_exposure_images(ctx.dataset, low_exposure_threshold)
-        if ctx.params.get("high_exposure", False) == True:
-            high_exposure_threshold = ctx.params.get(
-                "high_exposure_threshold", 0.7
-            )
-            find_high_exposure_images(ctx.dataset, high_exposure_threshold)
-        if ctx.params.get("low_contrast", False) == True:
-            low_contrast_threshold = ctx.params.get(
-                "low_contrast_threshold", 50.0
-            )
-            find_low_contrast_images(ctx.dataset, low_contrast_threshold)
-        if ctx.params.get("high_contrast", False) == True:
-            high_contrast_threshold = ctx.params.get(
-                "high_contrast_threshold", 200.0
-            )
-            find_high_contrast_images(ctx.dataset, high_contrast_threshold)
-        if ctx.params.get("low_saturation", False) == True:
-            low_saturation_threshold = ctx.params.get(
-                "low_saturation_threshold", 40.0
-            )
-            find_low_saturation_images(ctx.dataset, low_saturation_threshold)
-        if ctx.params.get("high_saturation", False) == True:
-            high_saturation_threshold = ctx.params.get(
-                "high_saturation_threshold", 200.0
-            )
-            find_high_saturation_images(ctx.dataset, high_saturation_threshold)
-        if ctx.params.get("uneven_illumination", False) == True:
-            vignetting_threshold = ctx.params.get("vignetting_threshold", 10.0)
-            uneven_illumination_images(ctx.dataset, vignetting_threshold)
+        for issue in ISSUE_MAPPING:
+            if ctx.params.get(issue, False) == True:
+                threshold_key = issue["threshold"]
+                threshold = ctx.params.get(threshold_key, None)
+                _find_issue_type_images(
+                    ctx.dataset, issue, threshold=threshold
+                )
 
         ctx.trigger("reload_dataset")
 
