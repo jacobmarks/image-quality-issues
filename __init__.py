@@ -752,6 +752,27 @@ def uneven_illumination_images(dataset, threshold=None):
     _find_issue_type_images(dataset, "uneven_illumination", threshold)
 
 
+def _single_or_multi_mode(inputs):
+    mode = types.RadioGroup()
+    mode.add_choice(
+        "SINGLE",
+        label="SINGLE",
+        description="Find a single type of issue",
+    )
+    mode.add_choice(
+        "MULTI",
+        label="MULTI",
+        description="Find multiple types of issues",
+    )
+    inputs.enum(
+        "issue_mode",
+        mode.values(),
+        default="SINGLE",
+        description="Find a single type of issue or multiple types of issues",
+        view=types.TabsView(),
+    )
+
+
 class FindIssues(foo.Operator):
     @property
     def config(self):
@@ -783,28 +804,60 @@ class FindIssues(foo.Operator):
             }
         )
 
-        for issue in ISSUE_MAPPING:
-            inputs.bool(
-                issue,
-                default=True,
-                label=ISSUE_MAPPING[issue]["label"],
-                view=types.CheckboxView(),
+        _single_or_multi_mode(inputs)
+
+        mode = ctx.params.get("issue_mode", "SINGLE")
+
+        if mode == "SINGLE":
+            issue_choices = types.RadioGroup()
+            for issue in ISSUE_MAPPING:
+                issue_choices.add_choice(
+                    issue,
+                    label=ISSUE_MAPPING[issue]["label"],
+                    description=ISSUE_MAPPING[issue]["description"],
+                )
+            inputs.enum(
+                "issue",
+                issue_choices.values(),
+                default="bright",
+                label="Issue",
+                view=types.DropdownView(),
             )
 
-            if ctx.params.get(issue, False) == True:
-                inputs.float(
-                    issue + "_threshold",
-                    default=ISSUE_MAPPING[issue]["threshold"],
-                    label=ISSUE_MAPPING[issue]["description"],
-                    view=threshold_view,
+            for issue in ISSUE_MAPPING:
+                if ctx.params.get("issue", False) == issue:
+                    inputs.float(
+                        issue + "_threshold",
+                        default=ISSUE_MAPPING[issue]["threshold"],
+                        label=ISSUE_MAPPING[issue]["description"],
+                        view=threshold_view,
+                    )
+        else:
+            for issue in ISSUE_MAPPING:
+                inputs.bool(
+                    issue,
+                    default=True,
+                    label=ISSUE_MAPPING[issue]["label"],
+                    view=types.CheckboxView(),
                 )
+
+                if ctx.params.get(issue, False) == True:
+                    inputs.float(
+                        issue + "_threshold",
+                        default=ISSUE_MAPPING[issue]["threshold"],
+                        label=ISSUE_MAPPING[issue]["description"],
+                        view=threshold_view,
+                    )
 
         return types.Property(inputs, view=form_view)
 
     def execute(self, ctx):
-        for issue in ISSUE_MAPPING:
-            if ctx.params.get(issue, False) == True:
-                threshold_key = issue["threshold"]
+        for issue in ISSUE_MAPPING.keys():
+            if (
+                ctx.params.get(issue, False) == True
+                or ctx.params.get("issue", False) == issue
+            ):
+                threshold_key = ISSUE_MAPPING[issue]["threshold"]
                 threshold = ctx.params.get(threshold_key, None)
                 _find_issue_type_images(
                     ctx.dataset, issue, threshold=threshold
