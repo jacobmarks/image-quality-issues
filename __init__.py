@@ -809,7 +809,7 @@ class FindIssues(foo.Operator):
         mode = ctx.params.get("issue_mode", "SINGLE")
 
         if mode == "SINGLE":
-            issue_choices = types.RadioGroup()
+            issue_choices = types.Dropdown(multiple=False)
             for issue in ISSUE_MAPPING:
                 issue_choices.add_choice(
                     issue,
@@ -819,9 +819,9 @@ class FindIssues(foo.Operator):
             inputs.enum(
                 "issue",
                 issue_choices.values(),
-                default="bright",
-                label="Issue",
-                view=types.DropdownView(),
+                required=True,
+                label="Issue Type",
+                view=issue_choices,
             )
 
             for issue in ISSUE_MAPPING:
