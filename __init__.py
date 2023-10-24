@@ -852,10 +852,14 @@ class FindIssues(foo.Operator):
         return types.Property(inputs, view=form_view)
 
     def execute(self, ctx):
+        single_mode = ctx.params.get("issue_mode", "SINGLE")
+
         for issue in ISSUE_MAPPING.keys():
             if (
                 ctx.params.get(issue, False) == True
+                and single_mode == "MULTI"
                 or ctx.params.get("issue", False) == issue
+                and single_mode == "SINGLE"
             ):
                 threshold_key = ISSUE_MAPPING[issue]["threshold"]
                 threshold = ctx.params.get(threshold_key, None)
