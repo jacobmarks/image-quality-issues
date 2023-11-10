@@ -809,54 +809,6 @@ def _find_issue_type_images(
     )
 
 
-# def find_dark_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "dark", threshold, patches_field=patches_field, view=view)
-
-
-# def find_bright_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "bright", threshold, patches_field=patches_field, view=view)
-
-
-# def find_weird_aspect_ratio_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "weird_aspect_ratio", threshold, patches_field=patches_field, view=view)
-
-
-# def find_blurry_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "blurry", threshold, patches_field=patches_field, view=view)
-
-
-# def find_low_entropy_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "low_entropy", threshold, patches_field=patches_field, view=view)
-
-
-# def find_low_exposure_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "low_exposure", threshold, patches_field=patches_field, view=view)
-
-
-# def find_high_exposure_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "high_exposure", threshold, patches_field=patches_field, view=view)
-
-
-# def find_low_contrast_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "low_contrast", threshold, patches_field=patches_field, view=view)
-
-
-# def find_high_contrast_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "high_contrast", threshold, patches_field=patches_field, view=view)
-
-
-# def find_low_saturation_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "low_saturation", threshold, patches_field=patches_field, view=view)
-
-
-# def find_high_saturation_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "high_saturation", threshold, patches_field=patches_field, view=view)
-
-
-# def uneven_illumination_images(dataset, threshold=None, patches_field=None, view=None):
-#     _find_issue_type_images(dataset, "uneven_illumination", threshold, patches_field=patches_field, view=view)
-
-
 def _single_or_multi_mode(inputs):
     mode = types.RadioGroup()
     mode.add_choice(
