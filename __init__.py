@@ -16,6 +16,7 @@ from PIL import Image
 import fiftyone as fo
 import fiftyone.operators as foo
 from fiftyone.operators import types
+import fiftyone.utils.patches as foup
 from fiftyone import ViewField as F
 
 
@@ -105,10 +106,59 @@ def get_filepath(sample):
     )
 
 
-def compute_sample_brightness(sample):
-    image = Image.open(get_filepath(sample))
-    pixels = np.array(image)
-    if sample.metadata.num_channels == 3:
+def _get_pillow_patch(sample, detection):
+    img = Image.open(get_filepath(sample))
+    img_w, img_h = sample.metadata.width, sample.metadata.height
+
+    bounding_box = detection.bounding_box
+    left, top, width, height = bounding_box
+    left *= img_w
+    top *= img_h
+    right = left + width * img_w
+    bottom = top + height * img_h
+
+    return img.crop((left, top, right, bottom))
+
+
+def _convert_pillow_to_opencv(pillow_img):
+    # pylint: disable=no-member
+    return cv2.cvtColor(np.array(pillow_img), cv2.COLOR_RGB2BGR)
+
+
+def _convert_opencv_to_pillow(opencv_image):
+    # pylint: disable=no-member
+    return Image.fromarray(cv2.cvtColor(opencv_image, cv2.COLOR_BGR2RGB))
+
+
+def _handle_patch_inputs(ctx, inputs):
+    target_view = _get_target_view(ctx, ctx.params["target"])
+    patch_types = (fo.Detection, fo.Detections, fo.Polyline, fo.Polylines)
+    patches_fields = list(
+        target_view.get_field_schema(embedded_doc_type=patch_types).keys()
+    )
+
+    if patches_fields:
+        patches_field_choices = types.DropdownView()
+        for field in sorted(patches_fields):
+            patches_field_choices.add_choice(field, label=field)
+
+        inputs.str(
+            "patches_field",
+            default=None,
+            required=False,
+            label="Patches field",
+            description=(
+                "An optional sample field defining image patches in each "
+                "sample to run the computation on. If omitted, the full images "
+                "will be used."
+            ),
+            view=patches_field_choices,
+        )
+
+
+def _compute_brightness(pillow_img):
+    pixels = np.array(pillow_img)
+    if pixels.ndim == 3:
         r, g, b = pixels.mean(axis=(0, 1))
     else:
         mean = pixels.mean()
@@ -128,13 +178,30 @@ def compute_sample_brightness(sample):
     return brightness
 
 
-def compute_dataset_brightness(dataset, view=None):
-    dataset.add_sample_field("brightness", fo.FloatField)
+def compute_sample_brightness(sample):
+    image = Image.open(get_filepath(sample))
+    return _compute_brightness(image)
+
+
+def compute_patch_brightness(sample, detection):
+    patch = _get_pillow_patch(sample, detection)
+    return _compute_brightness(patch)
+
+
+def compute_dataset_brightness(dataset, view=None, patches_field=None):
     if view is None:
         view = dataset
-    for sample in view.iter_samples(autosave=True):
-        brightness = compute_sample_brightness(sample)
-        sample["brightness"] = brightness
+    if patches_field is None:
+        dataset.add_sample_field("brightness", fo.FloatField)
+        for sample in view.iter_samples(autosave=True):
+            brightness = compute_sample_brightness(sample)
+            sample["brightness"] = brightness
+    else:
+        for sample in view.iter_samples(autosave=True):
+            for detection in sample[patches_field].detections:
+                brightness = compute_patch_brightness(sample, detection)
+                detection["brightness"] = brightness
+        dataset.add_dynamic_sample_fields()
 
 
 class ComputeBrightness(foo.Operator):
@@ -156,11 +223,15 @@ class ComputeBrightness(foo.Operator):
         inputs.message("compute brightness", label="compute brightness")
         _execution_mode(ctx, inputs)
         _list_target_views(ctx, inputs)
+        _handle_patch_inputs(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
-        compute_dataset_brightness(ctx.dataset, view=view)
+        patches_field = ctx.params.get("patches_field", None)
+        compute_dataset_brightness(
+            ctx.dataset, view=view, patches_field=patches_field
+        )
         ctx.trigger("reload_dataset")
 
 
