@@ -17,6 +17,10 @@ With this plugin, you can find the following issues:
 - 🧂 Noise: find images with high salt and pepper noise
 - 🌈 Saturation: find images with low and high saturation
 
+### Updates
+
+- **2021-11-10**: Version 2.0.0 adds support for object patches, lots of refactoring, and more robustness!
+
 ## Watch On Youtube
 
 [![Video Thumbnail](https://img.youtube.com/vi/0Kkzx0nEXEo/0.jpg)](https://www.youtube.com/watch?v=0Kkzx0nEXEo&list=PLuREAXoPgT0RZrUaT0UpX_HzwKkoB-S9j&index=14)
