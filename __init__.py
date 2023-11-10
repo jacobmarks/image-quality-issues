@@ -105,14 +105,14 @@ def _list_target_views(ctx, inputs):
         target_choices.add_choice(
             "DATASET",
             label="Entire dataset",
-            description="Run computation for the entire dataset",
+            description="Run for the entire dataset",
         )
 
         if has_view:
             target_choices.add_choice(
                 "CURRENT_VIEW",
                 label="Current view",
-                description="Run computation for the current view",
+                description="Run for the current view",
             )
             default_target = "CURRENT_VIEW"
 
@@ -120,7 +120,7 @@ def _list_target_views(ctx, inputs):
             target_choices.add_choice(
                 "SELECTED_SAMPLES",
                 label="Selected samples",
-                description="Run computation for the selected samples",
+                description="Run for the selected samples",
             )
             default_target = "SELECTED_SAMPLES"
 
@@ -145,7 +145,7 @@ def _get_target_view(ctx, target):
 
 
 def _handle_patch_inputs(ctx, inputs):
-    target_view = _get_target_view(ctx, ctx.params["target"])
+    target_view = _get_target_view(ctx, ctx.params.get("target", None))
     patch_types = (fo.Detection, fo.Detections, fo.Polyline, fo.Polylines)
     patches_fields = list(
         target_view.get_field_schema(embedded_doc_type=patch_types).keys()
@@ -642,11 +642,26 @@ class ComputeVignetting(foo.Operator):
         _handle_execution(ctx, "vignetting")
 
 
-def _need_to_compute(dataset, field_name):
-    if field_name in list(dataset.get_field_schema().keys()):
-        return False
+def _need_to_compute(dataset, field_name, patches_field=None):
+    if patches_field is not None:
+        i = 0
+        sample = dataset.skip(i).first()
+        while (
+            "detections" not in sample[patches_field]
+            or len(sample[patches_field].detections) == 0
+        ):
+            i += 1
+            sample = dataset.skip(i).first()
+        detection = sample[patches_field].detections[0]
+        if field_name not in detection:
+            return True
+        else:
+            return False
     else:
-        return field_name not in dataset.first()
+        if field_name in list(dataset.get_field_schema().keys()):
+            return False
+        else:
+            return field_name not in dataset.first()
 
 
 def _run_computation(dataset, issue_name, patches_field=None):
@@ -742,23 +757,44 @@ def find_issue_images(
     field_name,
     issue_name,
     lt=True,
+    patches_field=None,
+    view=None,
 ):
-    dataset.add_sample_field(issue_name, fo.BooleanField)
-    if _need_to_compute(dataset, field_name):
-        _run_computation(dataset, field_name)
+    if _need_to_compute(dataset, field_name, patches_field=patches_field):
+        _run_computation(dataset, field_name, patches_field=patches_field)
 
-    if lt:
-        view = dataset.set_field(issue_name, F(field_name) < threshold)
+    if view is None:
+        view = dataset
+
+    if patches_field is None:
+        dataset.add_sample_field(issue_name, fo.BooleanField)
+
+        if lt:
+            view = view.set_field(issue_name, F(field_name) < threshold)
+        else:
+            view = view.set_field(issue_name, F(field_name) > threshold)
+        view.save()
+        view = view.match(F(issue_name))
+        view.tag_samples(issue_name)
+        view.tag_samples("issue")
+        view.save()
     else:
-        view = dataset.set_field(issue_name, F(field_name) > threshold)
-    view.save()
-    view = dataset.match(F(issue_name))
-    view.tag_samples(issue_name)
-    view.tag_samples("issue")
-    view.save()
+        embedded_field_name = f"{patches_field}.detections.{field_name}"
+        embedded_issue_name = f"{patches_field}.detections.{issue_name}"
+        if lt:
+            values = view.values(F(embedded_field_name) < threshold)
+        else:
+            values = view.values(F(embedded_field_name) > threshold)
+        view.set_values(embedded_issue_name, values, dynamic=True)
+        view = view.filter_labels(patches_field, filter=F(issue_name) == True)
+        view.tag_labels(issue_name, label_fields=patches_field)
+        view.tag_labels("issue", label_fields=patches_field)
+        dataset.add_dynamic_sample_fields()
 
 
-def _find_issue_type_images(dataset, issue_type, threshold=None):
+def _find_issue_type_images(
+    dataset, issue_type, threshold=None, patches_field=None, view=None
+):
     issue = ISSUE_MAPPING[issue_type]
     if threshold is None:
         threshold = issue["threshold"]
@@ -768,55 +804,57 @@ def _find_issue_type_images(dataset, issue_type, threshold=None):
         issue["base_property"],
         issue_type,
         lt=issue["lt"],
+        patches_field=patches_field,
+        view=view,
     )
 
 
-def find_dark_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "dark", threshold)
+# def find_dark_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "dark", threshold, patches_field=patches_field, view=view)
 
 
-def find_bright_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "bright", threshold)
+# def find_bright_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "bright", threshold, patches_field=patches_field, view=view)
 
 
-def find_weird_aspect_ratio_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "weird_aspect_ratio", threshold)
+# def find_weird_aspect_ratio_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "weird_aspect_ratio", threshold, patches_field=patches_field, view=view)
 
 
-def find_blurry_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "blurry", threshold)
+# def find_blurry_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "blurry", threshold, patches_field=patches_field, view=view)
 
 
-def find_low_entropy_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "low_entropy", threshold)
+# def find_low_entropy_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "low_entropy", threshold, patches_field=patches_field, view=view)
 
 
-def find_low_exposure_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "low_exposure", threshold)
+# def find_low_exposure_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "low_exposure", threshold, patches_field=patches_field, view=view)
 
 
-def find_high_exposure_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "high_exposure", threshold)
+# def find_high_exposure_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "high_exposure", threshold, patches_field=patches_field, view=view)
 
 
-def find_low_contrast_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "low_contrast", threshold)
+# def find_low_contrast_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "low_contrast", threshold, patches_field=patches_field, view=view)
 
 
-def find_high_contrast_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "high_contrast", threshold)
+# def find_high_contrast_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "high_contrast", threshold, patches_field=patches_field, view=view)
 
 
-def find_low_saturation_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "low_saturation", threshold)
+# def find_low_saturation_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "low_saturation", threshold, patches_field=patches_field, view=view)
 
 
-def find_high_saturation_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "high_saturation", threshold)
+# def find_high_saturation_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "high_saturation", threshold, patches_field=patches_field, view=view)
 
 
-def uneven_illumination_images(dataset, threshold=None):
-    _find_issue_type_images(dataset, "uneven_illumination", threshold)
+# def uneven_illumination_images(dataset, threshold=None, patches_field=None, view=None):
+#     _find_issue_type_images(dataset, "uneven_illumination", threshold, patches_field=patches_field, view=view)
 
 
 def _single_or_multi_mode(inputs):
@@ -874,6 +912,8 @@ class FindIssues(foo.Operator):
         _single_or_multi_mode(inputs)
 
         mode = ctx.params.get("issue_mode", "SINGLE")
+        _list_target_views(ctx, inputs)
+        _handle_patch_inputs(ctx, inputs)
 
         if mode == "SINGLE":
             issue_choices = types.Dropdown(multiple=False)
@@ -920,6 +960,8 @@ class FindIssues(foo.Operator):
 
     def execute(self, ctx):
         single_mode = ctx.params.get("issue_mode", "SINGLE")
+        view = _get_target_view(ctx, ctx.params["target"])
+        patches_field = ctx.params.get("patches_field", None)
 
         for issue in ISSUE_MAPPING.keys():
             if (
@@ -931,7 +973,11 @@ class FindIssues(foo.Operator):
                 threshold_key = ISSUE_MAPPING[issue]["threshold"]
                 threshold = ctx.params.get(threshold_key, None)
                 _find_issue_type_images(
-                    ctx.dataset, issue, threshold=threshold
+                    ctx.dataset,
+                    issue,
+                    threshold=threshold,
+                    patches_field=patches_field,
+                    view=view,
                 )
 
         ctx.trigger("reload_dataset")
