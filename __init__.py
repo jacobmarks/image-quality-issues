@@ -235,20 +235,38 @@ class ComputeBrightness(foo.Operator):
         ctx.trigger("reload_dataset")
 
 
-def compute_sample_aspect_ratio(sample):
-    width, height = sample.metadata.width, sample.metadata.height
+def _compute_aspect_ratio(width, height):
     ratio = width / height
     return min(ratio, 1 / ratio)
 
 
-def compute_dataset_aspect_ratio(dataset, view=None):
+def compute_sample_aspect_ratio(sample):
+    width, height = sample.metadata.width, sample.metadata.height
+    return _compute_aspect_ratio(width, height)
+
+
+def compute_patch_aspect_ratio(sample, detection):
+    img_width, img_height = sample.metadata.width, sample.metadata.height
+    bbox_width, bbox_height = detection.bounding_box[2:]
+    width, height = bbox_width * img_width, bbox_height * img_height
+    return _compute_aspect_ratio(width, height)
+
+
+def compute_dataset_aspect_ratio(dataset, view=None, patches_field=None):
     dataset.compute_metadata()
-    dataset.add_sample_field("aspect_ratio", fo.FloatField)
     if view is None:
         view = dataset
-    for sample in view.iter_samples(autosave=True):
-        aspect_ratio = compute_sample_aspect_ratio(sample)
-        sample["aspect_ratio"] = aspect_ratio
+    if patches_field is None:
+        dataset.add_sample_field("aspect_ratio", fo.FloatField)
+        for sample in view.iter_samples(autosave=True):
+            aspect_ratio = compute_sample_aspect_ratio(sample)
+            sample["aspect_ratio"] = aspect_ratio
+    else:
+        for sample in view.iter_samples(autosave=True):
+            for detection in sample[patches_field].detections:
+                aspect_ratio = compute_patch_aspect_ratio(sample, detection)
+                detection["aspect_ratio"] = aspect_ratio
+        dataset.add_dynamic_sample_fields()
 
 
 class ComputeAspectRatio(foo.Operator):
@@ -270,11 +288,15 @@ class ComputeAspectRatio(foo.Operator):
         inputs.message("compute aspect ratio", label="compute aspect ratio")
         _execution_mode(ctx, inputs)
         _list_target_views(ctx, inputs)
+        _handle_patch_inputs(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
-        compute_dataset_aspect_ratio(ctx.dataset, view=view)
+        patches_field = ctx.params.get("patches_field", None)
+        compute_dataset_aspect_ratio(
+            ctx.dataset, view=view, patches_field=patches_field
+        )
         ctx.trigger("reload_dataset")
 
 
