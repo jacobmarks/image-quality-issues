@@ -16,8 +16,52 @@ from PIL import Image
 import fiftyone as fo
 import fiftyone.operators as foo
 from fiftyone.operators import types
-import fiftyone.utils.patches as foup
 from fiftyone import ViewField as F
+
+
+######## HELPER FUNCTIONS ########
+
+
+def get_filepath(sample):
+    return (
+        sample.local_path if hasattr(sample, "local_path") else sample.filepath
+    )
+
+
+def _crop_pillow_image(pillow_img, detection):
+    img_w, img_h = pillow_img.width, pillow_img.height
+
+    bounding_box = detection.bounding_box
+    left, top, width, height = bounding_box
+    left *= img_w
+    top *= img_h
+    right = left + width * img_w
+    bottom = top + height * img_h
+
+    return pillow_img.crop((left, top, right, bottom))
+
+
+def _get_pillow_patch(sample, detection):
+    img = Image.open(get_filepath(sample))
+    return _crop_pillow_image(img, detection)
+
+
+def _convert_pillow_to_opencv(pillow_img):
+    # pylint: disable=no-member
+    return cv2.cvtColor(np.array(pillow_img), cv2.COLOR_RGB2BGR)
+
+
+def _convert_opencv_to_pillow(opencv_image):
+    # pylint: disable=no-member
+    return Image.fromarray(cv2.cvtColor(opencv_image, cv2.COLOR_BGR2RGB))
+
+
+def _get_opencv_grayscale_image(sample):
+    # pylint: disable=no-member
+    return cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
+
+
+######## CONTEXT & INPUT MANAGEMENT ########
 
 
 def _execution_mode(ctx, inputs):
@@ -100,36 +144,6 @@ def _get_target_view(ctx, target):
     return ctx.view
 
 
-def get_filepath(sample):
-    return (
-        sample.local_path if hasattr(sample, "local_path") else sample.filepath
-    )
-
-
-def _get_pillow_patch(sample, detection):
-    img = Image.open(get_filepath(sample))
-    img_w, img_h = sample.metadata.width, sample.metadata.height
-
-    bounding_box = detection.bounding_box
-    left, top, width, height = bounding_box
-    left *= img_w
-    top *= img_h
-    right = left + width * img_w
-    bottom = top + height * img_h
-
-    return img.crop((left, top, right, bottom))
-
-
-def _convert_pillow_to_opencv(pillow_img):
-    # pylint: disable=no-member
-    return cv2.cvtColor(np.array(pillow_img), cv2.COLOR_RGB2BGR)
-
-
-def _convert_opencv_to_pillow(opencv_image):
-    # pylint: disable=no-member
-    return Image.fromarray(cv2.cvtColor(opencv_image, cv2.COLOR_BGR2RGB))
-
-
 def _handle_patch_inputs(ctx, inputs):
     target_view = _get_target_view(ctx, ctx.params["target"])
     patch_types = (fo.Detection, fo.Detections, fo.Polyline, fo.Polylines)
@@ -156,6 +170,49 @@ def _handle_patch_inputs(ctx, inputs):
         )
 
 
+######## COMPUTATION FUNCTIONS ########
+
+#### ASPECT RATIO ####
+def _compute_aspect_ratio(width, height):
+    ratio = width / height
+    return min(ratio, 1 / ratio)
+
+
+def compute_sample_aspect_ratio(sample):
+    width, height = sample.metadata.width, sample.metadata.height
+    return _compute_aspect_ratio(width, height)
+
+
+def compute_patch_aspect_ratio(sample, detection):
+    img_width, img_height = sample.metadata.width, sample.metadata.height
+    bbox_width, bbox_height = detection.bounding_box[2:]
+    width, height = bbox_width * img_width, bbox_height * img_height
+    return _compute_aspect_ratio(width, height)
+
+
+#### BLURRINESS ####
+def _compute_blurriness(cv2_img):
+    # pylint: disable=no-member
+    gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
+    # pylint: disable=no-member
+    laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+    variance = laplacian.var()
+    return variance
+
+
+def compute_sample_blurriness(sample):
+    # pylint: disable=no-member
+    image = cv2.imread(get_filepath(sample))
+    return _compute_blurriness(image)
+
+
+def compute_patch_blurriness(sample, detection):
+    patch = _get_pillow_patch(sample, detection)
+    patch = _convert_pillow_to_opencv(patch)
+    return _compute_blurriness(patch)
+
+
+#### BRIGHTNESS ####
 def _compute_brightness(pillow_img):
     pixels = np.array(pillow_img)
     if pixels.ndim == 3:
@@ -188,20 +245,249 @@ def compute_patch_brightness(sample, detection):
     return _compute_brightness(patch)
 
 
-def compute_dataset_brightness(dataset, view=None, patches_field=None):
+#### CONTRAST ####
+def _compute_contrast(cv2_image):
+    # Calculate the histogram
+    histogram, _ = np.histogram(cv2_image, bins=256, range=(0, 256))
+    min_intensity = np.min(np.where(histogram > 0))
+    max_intensity = np.max(np.where(histogram > 0))
+    contrast_range = max_intensity - min_intensity
+    return contrast_range
+
+
+def compute_sample_contrast(sample):
+    image = _get_opencv_grayscale_image(sample)
+    return _compute_contrast(image)
+
+
+def compute_patch_contrast(sample, detection):
+    cv2_image = _get_opencv_grayscale_image(sample)
+    pillow_image = _convert_opencv_to_pillow(cv2_image)
+    patch = _crop_pillow_image(pillow_image, detection)
+    patch = _convert_pillow_to_opencv(patch)
+    return _compute_contrast(patch)
+
+
+#### ENTROPY ####
+def _compute_entropy(pillow_img):
+    return pillow_img.entropy()
+
+
+def compute_sample_entropy(sample):
+    image = Image.open(get_filepath(sample))
+    return _compute_entropy(image)
+
+
+def compute_patch_entropy(sample, detection):
+    patch = _get_pillow_patch(sample, detection)
+    return _compute_entropy(patch)
+
+
+#### EXPOSURE ####
+
+# def compute_sample_exposure(sample):
+#     gray = _get_opencv_grayscale_image(sample)
+#     # pylint: disable=no-member
+#     histogram = cv2.calcHist([gray], [0], None, [256], [0, 256])
+#     normalized_histogram = histogram.ravel() / histogram.max()
+#     return normalized_histogram
+
+
+# def compute_dataset_exposure(dataset, view=None):
+#     dataset.add_sample_field("min_exposure", fo.FloatField)
+#     dataset.add_sample_field("max_exposure", fo.FloatField)
+#     if view is None:
+#         view = dataset
+#     for sample in view.iter_samples(autosave=True):
+#         exposure = compute_sample_exposure(sample)
+#         sample["min_exposure"] = exposure[0]
+#         sample["max_exposure"] = exposure[-1]
+
+
+def _compute_exposure(opencv_gray_img):
+    histogram = cv2.calcHist([opencv_gray_img], [0], None, [256], [0, 256])
+    normalized_histogram = histogram.ravel() / histogram.max()
+    min_exposure = normalized_histogram[0]
+    max_exposure = normalized_histogram[-1]
+    return min_exposure, max_exposure
+
+
+def compute_sample_exposure(sample):
+    gray_img = _get_opencv_grayscale_image(sample)
+    return _compute_exposure(gray_img)
+
+
+def compute_patch_exposure(sample, detection):
+    gray_img = _get_opencv_grayscale_image(sample)
+    pillow_image = _convert_opencv_to_pillow(gray_img)
+    patch = _crop_pillow_image(pillow_image, detection)
+    patch = _convert_pillow_to_opencv(patch)
+    return _compute_exposure(patch)
+
+
+#### SALT AND PEPPER ####
+def _compute_salt_and_pepper(opencv_gray_img):
+    SALT_THRESHOLD = 245
+    PEPPER_THRESHOLD = 10
+    # Identify salt-and-pepper pixels
+    salt_pixels = opencv_gray_img >= SALT_THRESHOLD
+    pepper_pixels = opencv_gray_img <= PEPPER_THRESHOLD
+
+    # Calculate the percentage of salt-and-pepper pixels
+    total_salt_pepper_pixels = np.sum(salt_pixels) + np.sum(pepper_pixels)
+    total_pixels = opencv_gray_img.size
+    noise_percentage = total_salt_pepper_pixels / total_pixels * 100
+    return noise_percentage
+
+
+def compute_sample_salt_and_pepper(sample):
+    gray_img = _get_opencv_grayscale_image(sample)
+    return _compute_salt_and_pepper(gray_img)
+
+
+def compute_patch_salt_and_pepper(sample, detection):
+    gray_img = _get_opencv_grayscale_image(sample)
+    pillow_image = _convert_opencv_to_pillow(gray_img)
+    patch = _crop_pillow_image(pillow_image, detection)
+    patch = _convert_pillow_to_opencv(patch)
+    return _compute_salt_and_pepper(patch)
+
+
+def _compute_saturation(open_cv_image):
+    # pylint: disable=no-member
+    hsv = cv2.cvtColor(open_cv_image, cv2.COLOR_BGR2HSV)
+    saturation = hsv[:, :, 1]
+    return np.mean(saturation)
+
+
+def compute_sample_saturation(sample):
+    # pylint: disable=no-member
+    image = cv2.imread(get_filepath(sample))
+    return _compute_saturation(image)
+
+
+def compute_patch_saturation(sample, detection):
+    # pylint: disable=no-member
+    opencv_image = cv2.imread(get_filepath(sample))
+    pillow_image = _convert_opencv_to_pillow(opencv_image)
+    patch = _crop_pillow_image(pillow_image, detection)
+    patch = _convert_pillow_to_opencv(patch)
+    return _compute_saturation(patch)
+
+
+#### VIGNETTING ####
+def _compute_vignetting(opencv_gray_img):
+    # Get the image center
+    size_y, size_x = np.array(opencv_gray_img).shape[:2]
+    center_y, center_x = size_y / 2, size_x / 2
+
+    # Calculate the maximum radius
+    max_radius = np.min([center_x, center_y])
+
+    # Create a meshgrid for calculating distances
+    y, x = np.ogrid[
+        -center_y : opencv_gray_img.shape[0] - center_y,
+        -center_x : opencv_gray_img.shape[1] - center_x,
+    ]
+    distances = np.sqrt(x**2 + y**2)
+
+    # Calculate the radial intensity profile
+    radial_profile = []
+    for r in range(int(max_radius)):
+        mask = distances < r
+        if np.any(mask):
+            radial_profile.append(np.mean(opencv_gray_img[mask]))
+        else:
+            radial_profile.append(np.nan)  # Append NaN if the mask is empty
+
+    radial_profile = np.array(radial_profile)
+
+    # Filter out NaN values before calculating the drop-off
+    radial_profile = radial_profile[~np.isnan(radial_profile)]
+
+    # Analyze the profile for a drop-off, if there are any values
+    if len(radial_profile) > 0:
+        drop_off_percentage = (
+            (radial_profile[0] - radial_profile[-1]) / radial_profile[0] * 100
+        )
+    else:
+        drop_off_percentage = np.nan
+
+    return drop_off_percentage
+
+
+def compute_sample_vignetting(sample):
+    # pylint: disable=no-member
+    image = cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
+    return _compute_vignetting(image)
+
+
+def compute_patch_vignetting(sample, detection):
+    # pylint: disable=no-member
+    gray_image = cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
+    pillow_image = _convert_opencv_to_pillow(gray_image)
+    patch = _crop_pillow_image(pillow_image, detection)
+    patch = _convert_pillow_to_opencv(patch)
+    return _compute_vignetting(patch)
+
+
+################################################################
+################################################################
+
+PROP_SAMPLE_COMPUTE_FUNCTIONS = {
+    "aspect_ratio": compute_sample_aspect_ratio,
+    "blurriness": compute_sample_blurriness,
+    "brightness": compute_sample_brightness,
+    "contrast": compute_sample_contrast,
+    "entropy": compute_sample_entropy,
+    "exposure": compute_sample_exposure,
+    "salt_and_pepper": compute_sample_salt_and_pepper,
+    "saturation": compute_sample_saturation,
+    "vignetting": compute_sample_vignetting,
+}
+
+
+PROP_PATCH_COMPUTE_FUNCTIONS = {
+    "aspect_ratio": compute_patch_aspect_ratio,
+    "blurriness": compute_patch_blurriness,
+    "brightness": compute_patch_brightness,
+    "contrast": compute_patch_contrast,
+    "entropy": compute_patch_entropy,
+    "exposure": compute_patch_exposure,
+    "salt_and_pepper": compute_patch_salt_and_pepper,
+    "saturation": compute_patch_saturation,
+    "vignetting": compute_patch_vignetting,
+}
+
+
+def compute_dataset_property(property, dataset, view=None, patches_field=None):
     if view is None:
         view = dataset
     if patches_field is None:
-        dataset.add_sample_field("brightness", fo.FloatField)
+        dataset.add_sample_field(property, fo.FloatField)
         for sample in view.iter_samples(autosave=True):
-            brightness = compute_sample_brightness(sample)
-            sample["brightness"] = brightness
+            prop_value = PROP_SAMPLE_COMPUTE_FUNCTIONS[property](sample)
+            if property == "exposure":
+                sample["min_exposure"] = prop_value[0]
+                sample["max_exposure"] = prop_value[1]
+            else:
+                sample[property] = prop_value
     else:
         for sample in view.iter_samples(autosave=True):
             for detection in sample[patches_field].detections:
-                brightness = compute_patch_brightness(sample, detection)
-                detection["brightness"] = brightness
+                prop_value = PROP_PATCH_COMPUTE_FUNCTIONS[property](
+                    sample, detection
+                )
+                if property == "exposure":
+                    detection["min_exposure"] = prop_value[0]
+                    detection["max_exposure"] = prop_value[1]
+                else:
+                    detection[property] = prop_value
         dataset.add_dynamic_sample_fields()
+
+
+################################################################
+################################################################
 
 
 class ComputeBrightness(foo.Operator):
@@ -229,44 +515,10 @@ class ComputeBrightness(foo.Operator):
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
         patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_brightness(
-            ctx.dataset, view=view, patches_field=patches_field
+        compute_dataset_property(
+            "brightness", ctx.dataset, view=view, patches_field=patches_field
         )
         ctx.trigger("reload_dataset")
-
-
-def _compute_aspect_ratio(width, height):
-    ratio = width / height
-    return min(ratio, 1 / ratio)
-
-
-def compute_sample_aspect_ratio(sample):
-    width, height = sample.metadata.width, sample.metadata.height
-    return _compute_aspect_ratio(width, height)
-
-
-def compute_patch_aspect_ratio(sample, detection):
-    img_width, img_height = sample.metadata.width, sample.metadata.height
-    bbox_width, bbox_height = detection.bounding_box[2:]
-    width, height = bbox_width * img_width, bbox_height * img_height
-    return _compute_aspect_ratio(width, height)
-
-
-def compute_dataset_aspect_ratio(dataset, view=None, patches_field=None):
-    dataset.compute_metadata()
-    if view is None:
-        view = dataset
-    if patches_field is None:
-        dataset.add_sample_field("aspect_ratio", fo.FloatField)
-        for sample in view.iter_samples(autosave=True):
-            aspect_ratio = compute_sample_aspect_ratio(sample)
-            sample["aspect_ratio"] = aspect_ratio
-    else:
-        for sample in view.iter_samples(autosave=True):
-            for detection in sample[patches_field].detections:
-                aspect_ratio = compute_patch_aspect_ratio(sample, detection)
-                detection["aspect_ratio"] = aspect_ratio
-        dataset.add_dynamic_sample_fields()
 
 
 class ComputeAspectRatio(foo.Operator):
@@ -294,48 +546,10 @@ class ComputeAspectRatio(foo.Operator):
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
         patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_aspect_ratio(
-            ctx.dataset, view=view, patches_field=patches_field
+        compute_dataset_property(
+            "aspect_ratio", ctx.dataset, view=view, patches_field=patches_field
         )
         ctx.trigger("reload_dataset")
-
-
-def _compute_blurriness(cv2_img):
-    # pylint: disable=no-member
-    gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
-    # pylint: disable=no-member
-    laplacian = cv2.Laplacian(gray, cv2.CV_64F)
-    variance = laplacian.var()
-    return variance
-
-
-def compute_sample_blurriness(sample):
-    # pylint: disable=no-member
-    image = cv2.imread(get_filepath(sample))
-    return _compute_blurriness(image)
-
-
-def compute_patch_blurriness(sample, detection):
-    patch = _get_pillow_patch(sample, detection)
-    patch = _convert_pillow_to_opencv(patch)
-    return _compute_blurriness(patch)
-
-
-def compute_dataset_blurriness(dataset, view=None, patches_field=None):
-    if view is None:
-        view = dataset
-
-    if patches_field is None:
-        dataset.add_sample_field("blurriness", fo.FloatField)
-        for sample in view.iter_samples(autosave=True):
-            blurriness = compute_sample_blurriness(sample)
-            sample["blurriness"] = blurriness
-    else:
-        for sample in view.iter_samples(autosave=True):
-            for detection in sample[patches_field].detections:
-                blurriness = compute_patch_blurriness(sample, detection)
-                detection["blurriness"] = blurriness
-        dataset.add_dynamic_sample_fields()
 
 
 class ComputeBlurriness(foo.Operator):
@@ -363,31 +577,10 @@ class ComputeBlurriness(foo.Operator):
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
         patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_blurriness(
-            ctx.dataset, view=view, patches_field=patches_field
+        compute_dataset_property(
+            "blurriness", ctx.dataset, view=view, patches_field=patches_field
         )
         ctx.trigger("reload_dataset")
-
-
-def compute_sample_contrast(sample):
-    # pylint: disable=no-member
-    image = cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
-
-    # Calculate the histogram
-    histogram, _ = np.histogram(image, bins=256, range=(0, 256))
-    min_intensity = np.min(np.where(histogram > 0))
-    max_intensity = np.max(np.where(histogram > 0))
-    contrast_range = max_intensity - min_intensity
-    return contrast_range
-
-
-def compute_dataset_contrast(dataset, view=None):
-    dataset.add_sample_field("contrast", fo.FloatField)
-    if view is None:
-        view = dataset
-    for sample in view.iter_samples(autosave=True):
-        contrast = compute_sample_contrast(sample)
-        sample["contrast"] = contrast
 
 
 class ComputeContrast(foo.Operator):
@@ -409,30 +602,16 @@ class ComputeContrast(foo.Operator):
         inputs.message("compute contrast", label="compute contrast")
         _execution_mode(ctx, inputs)
         _list_target_views(ctx, inputs)
+        _handle_patch_inputs(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
-        compute_dataset_contrast(ctx.dataset, view=view)
+        patches_field = ctx.params.get("patches_field", None)
+        compute_dataset_property(
+            "contrast", ctx.dataset, view=view, patches_field=patches_field
+        )
         ctx.trigger("reload_dataset")
-
-
-def compute_sample_saturation(sample):
-    # pylint: disable=no-member
-    image = cv2.imread(get_filepath(sample))
-    # pylint: disable=no-member
-    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    saturation = hsv[:, :, 1]
-    return np.mean(saturation)
-
-
-def compute_dataset_saturation(dataset, view=None):
-    dataset.add_sample_field("saturation", fo.FloatField)
-    if view is None:
-        view = dataset
-    for sample in view.iter_samples(autosave=True):
-        saturation = compute_sample_saturation(sample)
-        sample["saturation"] = saturation
 
 
 class ComputeSaturation(foo.Operator):
@@ -454,26 +633,16 @@ class ComputeSaturation(foo.Operator):
         inputs.message("compute saturation", label="compute saturation")
         _execution_mode(ctx, inputs)
         _list_target_views(ctx, inputs)
+        _handle_patch_inputs(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
-        compute_dataset_saturation(ctx.dataset, view=view)
+        patches_field = ctx.params.get("patches_field", None)
+        compute_dataset_property(
+            "saturation", ctx.dataset, view=view, patches_field=patches_field
+        )
         ctx.trigger("reload_dataset")
-
-
-def compute_sample_entropy(sample):
-    image = Image.open(get_filepath(sample))
-    return image.entropy()
-
-
-def compute_dataset_entropy(dataset, view=None):
-    dataset.add_sample_field("entropy", fo.FloatField)
-    if view is None:
-        view = dataset
-    for sample in view.iter_samples(autosave=True):
-        entropy = compute_sample_entropy(sample)
-        sample["entropy"] = entropy
 
 
 class ComputeEntropy(foo.Operator):
@@ -495,34 +664,16 @@ class ComputeEntropy(foo.Operator):
         inputs.message("compute entropy", label="compute entropy")
         _execution_mode(ctx, inputs)
         _list_target_views(ctx, inputs)
+        _handle_patch_inputs(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
-        compute_dataset_entropy(ctx.dataset, view=view)
+        patches_field = ctx.params.get("patches_field", None)
+        compute_dataset_property(
+            "entropy", ctx.dataset, view=view, patches_field=patches_field
+        )
         ctx.trigger("reload_dataset")
-
-
-def compute_sample_exposure(sample):
-    # pylint: disable=no-member
-    image = cv2.imread(get_filepath(sample))
-    # pylint: disable=no-member
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # pylint: disable=no-member
-    histogram = cv2.calcHist([gray], [0], None, [256], [0, 256])
-    normalized_histogram = histogram.ravel() / histogram.max()
-    return normalized_histogram
-
-
-def compute_dataset_exposure(dataset, view=None):
-    dataset.add_sample_field("min_exposure", fo.FloatField)
-    dataset.add_sample_field("max_exposure", fo.FloatField)
-    if view is None:
-        view = dataset
-    for sample in view.iter_samples(autosave=True):
-        exposure = compute_sample_exposure(sample)
-        sample["min_exposure"] = exposure[0]
-        sample["max_exposure"] = exposure[-1]
 
 
 class ComputeExposure(foo.Operator):
@@ -544,42 +695,16 @@ class ComputeExposure(foo.Operator):
         inputs.message("compute exposure", label="compute exposure")
         _execution_mode(ctx, inputs)
         _list_target_views(ctx, inputs)
+        _handle_patch_inputs(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
-        compute_dataset_exposure(ctx.dataset, view=view)
+        patches_field = ctx.params.get("patches_field", None)
+        compute_dataset_property(
+            "exposure", ctx.dataset, view=view, patches_field=patches_field
+        )
         ctx.trigger("reload_dataset")
-
-
-def compute_sample_salt_and_pepper(sample):
-    """
-    Computes the salt and pepper noise of an image.
-    """
-    SALT_THRESHOLD = 245
-    PEPPER_THRESHOLD = 10
-
-    # pylint: disable=no-member
-    image = cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
-
-    # Identify salt-and-pepper pixels
-    salt_pixels = image >= SALT_THRESHOLD
-    pepper_pixels = image <= PEPPER_THRESHOLD
-
-    # Calculate the percentage of salt-and-pepper pixels
-    total_salt_pepper_pixels = np.sum(salt_pixels) + np.sum(pepper_pixels)
-    total_pixels = image.size
-    noise_percentage = total_salt_pepper_pixels / total_pixels * 100
-    return noise_percentage
-
-
-def compute_dataset_salt_and_pepper(dataset, view=None):
-    dataset.add_sample_field("salt_and_pepper", fo.FloatField)
-    if view is None:
-        view = dataset
-    for sample in view.iter_samples(autosave=True):
-        salt_and_pepper = compute_sample_salt_and_pepper(sample)
-        sample["salt_and_pepper"] = salt_and_pepper
 
 
 class ComputeSaltAndPepper(foo.Operator):
@@ -603,51 +728,19 @@ class ComputeSaltAndPepper(foo.Operator):
         )
         _execution_mode(ctx, inputs)
         _list_target_views(ctx, inputs)
+        _handle_patch_inputs(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
-        compute_dataset_salt_and_pepper(ctx.dataset, view=view)
+        patches_field = ctx.params.get("patches_field", None)
+        compute_dataset_property(
+            "salt_and_pepper",
+            ctx.dataset,
+            view=view,
+            patches_field=patches_field,
+        )
         ctx.trigger("reload_dataset")
-
-
-def compute_sample_vignetting(sample):
-    # Read the image
-    # pylint: disable=no-member
-    image = cv2.imread(get_filepath(sample), cv2.IMREAD_GRAYSCALE)
-
-    # Get the image center
-    center_y, center_x = np.array(image.shape) / 2
-
-    # Calculate the maximum radius
-    max_radius = np.min([center_x, center_y])
-
-    # Create a meshgrid for calculating distances
-    y, x = np.ogrid[
-        -center_y : image.shape[0] - center_y,
-        -center_x : image.shape[1] - center_x,
-    ]
-    distances = np.sqrt(x**2 + y**2)
-
-    # Calculate the radial intensity profile
-    radial_profile = np.array(
-        [np.mean(image[distances < r]) for r in range(int(max_radius))]
-    )
-
-    # Analyze the profile for a drop-off
-    drop_off_percentage = (
-        (radial_profile[0] - radial_profile[-1]) / radial_profile[0] * 100
-    )
-    return drop_off_percentage
-
-
-def compute_dataset_vignetting(dataset, view=None):
-    dataset.add_sample_field("vignetting", fo.FloatField)
-    if view is None:
-        view = dataset
-    for sample in view.iter_samples(autosave=True):
-        vignetting = compute_sample_vignetting(sample)
-        sample["vignetting"] = vignetting
 
 
 class ComputeVignetting(foo.Operator):
@@ -669,11 +762,15 @@ class ComputeVignetting(foo.Operator):
         inputs.message("compute vignetting", label="compute vignetting")
         _execution_mode(ctx, inputs)
         _list_target_views(ctx, inputs)
+        _handle_patch_inputs(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
-        compute_dataset_vignetting(ctx.dataset, view=view)
+        patches_field = ctx.params.get("patches_field", None)
+        compute_dataset_property(
+            "vignetting", ctx.dataset, view=view, patches_field=patches_field
+        )
         ctx.trigger("reload_dataset")
 
 
@@ -684,22 +781,8 @@ def _need_to_compute(dataset, field_name):
         return field_name not in dataset.first()
 
 
-COMPUTATION_MAPPING = {
-    "brightness": compute_dataset_brightness,
-    "aspect_ratio": compute_dataset_aspect_ratio,
-    "entropy": compute_dataset_entropy,
-    "blurriness": compute_dataset_blurriness,
-    "min_exposure": compute_dataset_exposure,
-    "max_exposure": compute_dataset_exposure,
-    "contrast": compute_dataset_contrast,
-    "saturation": compute_dataset_saturation,
-    "salt_and_pepper": compute_dataset_salt_and_pepper,
-    "vignetting": compute_dataset_vignetting,
-}
-
-
-def _run_computation(dataset, field_name):
-    COMPUTATION_MAPPING[field_name](dataset)
+def _run_computation(dataset, issue_name, patches_field=None):
+    compute_dataset_property(issue_name, dataset, patches_field=patches_field)
 
 
 ISSUE_MAPPING = {
