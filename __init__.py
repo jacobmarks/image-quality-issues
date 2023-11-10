@@ -300,25 +300,42 @@ class ComputeAspectRatio(foo.Operator):
         ctx.trigger("reload_dataset")
 
 
-def compute_sample_blurriness(sample):
+def _compute_blurriness(cv2_img):
     # pylint: disable=no-member
-    image = cv2.imread(get_filepath(sample))
-    # Convert the image to grayscale
-    # pylint: disable=no-member
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
     # pylint: disable=no-member
     laplacian = cv2.Laplacian(gray, cv2.CV_64F)
     variance = laplacian.var()
     return variance
 
 
-def compute_dataset_blurriness(dataset, view=None):
-    dataset.add_sample_field("blurriness", fo.FloatField)
+def compute_sample_blurriness(sample):
+    # pylint: disable=no-member
+    image = cv2.imread(get_filepath(sample))
+    return _compute_blurriness(image)
+
+
+def compute_patch_blurriness(sample, detection):
+    patch = _get_pillow_patch(sample, detection)
+    patch = _convert_pillow_to_opencv(patch)
+    return _compute_blurriness(patch)
+
+
+def compute_dataset_blurriness(dataset, view=None, patches_field=None):
     if view is None:
         view = dataset
-    for sample in view.iter_samples(autosave=True):
-        blurriness = compute_sample_blurriness(sample)
-        sample["blurriness"] = blurriness
+
+    if patches_field is None:
+        dataset.add_sample_field("blurriness", fo.FloatField)
+        for sample in view.iter_samples(autosave=True):
+            blurriness = compute_sample_blurriness(sample)
+            sample["blurriness"] = blurriness
+    else:
+        for sample in view.iter_samples(autosave=True):
+            for detection in sample[patches_field].detections:
+                blurriness = compute_patch_blurriness(sample, detection)
+                detection["blurriness"] = blurriness
+        dataset.add_dynamic_sample_fields()
 
 
 class ComputeBlurriness(foo.Operator):
@@ -340,11 +357,15 @@ class ComputeBlurriness(foo.Operator):
         inputs.message("compute blurriness", label="compute blurriness")
         _execution_mode(ctx, inputs)
         _list_target_views(ctx, inputs)
+        _handle_patch_inputs(ctx, inputs)
         return types.Property(inputs)
 
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
-        compute_dataset_blurriness(ctx.dataset, view=view)
+        patches_field = ctx.params.get("patches_field", None)
+        compute_dataset_blurriness(
+            ctx.dataset, view=view, patches_field=patches_field
+        )
         ctx.trigger("reload_dataset")
 
 
