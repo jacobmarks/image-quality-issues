@@ -471,6 +471,7 @@ def compute_dataset_property(property, dataset, view=None, patches_field=None):
 ################################################################
 
 
+##### UNIFIED INTERFACE #####
 def _handle_config(property_name):
     _config = foo.OperatorConfig(
         name=f"compute_{property_name}",
@@ -498,27 +499,6 @@ def _handle_execution(ctx, property_name):
         property_name, ctx.dataset, view=view, patches_field=patches_field
     )
     ctx.trigger("reload_dataset")
-
-
-class ComputeBrightness(foo.Operator):
-    @property
-    def config(self):
-        return _handle_config("brightness")
-
-    def resolve_delegation(self, ctx):
-        return ctx.params.get("delegate", False)
-
-    def resolve_input(self, ctx):
-        inputs = types.Object()
-        return _handle_inputs(ctx, "brightness")
-
-    def execute(self, ctx):
-        view = _get_target_view(ctx, ctx.params["target"])
-        patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_property(
-            "brightness", ctx.dataset, view=view, patches_field=patches_field
-        )
-        ctx.trigger("reload_dataset")
 
 
 class ComputeAspectRatio(foo.Operator):
@@ -551,6 +531,27 @@ class ComputeBlurriness(foo.Operator):
         _handle_execution(ctx, "blurriness")
 
 
+class ComputeBrightness(foo.Operator):
+    @property
+    def config(self):
+        return _handle_config("brightness")
+
+    def resolve_delegation(self, ctx):
+        return ctx.params.get("delegate", False)
+
+    def resolve_input(self, ctx):
+        inputs = types.Object()
+        return _handle_inputs(ctx, "brightness")
+
+    def execute(self, ctx):
+        view = _get_target_view(ctx, ctx.params["target"])
+        patches_field = ctx.params.get("patches_field", None)
+        compute_dataset_property(
+            "brightness", ctx.dataset, view=view, patches_field=patches_field
+        )
+        ctx.trigger("reload_dataset")
+
+
 class ComputeContrast(foo.Operator):
     @property
     def config(self):
@@ -564,21 +565,6 @@ class ComputeContrast(foo.Operator):
 
     def execute(self, ctx):
         _handle_execution(ctx, "contrast")
-
-
-class ComputeSaturation(foo.Operator):
-    @property
-    def config(self):
-        return _handle_config("saturation")
-
-    def resolve_delegation(self, ctx):
-        return ctx.params.get("delegate", False)
-
-    def resolve_input(self, ctx):
-        return _handle_inputs(ctx, "saturation")
-
-    def execute(self, ctx):
-        _handle_execution(ctx, "saturation")
 
 
 class ComputeEntropy(foo.Operator):
@@ -624,6 +610,21 @@ class ComputeSaltAndPepper(foo.Operator):
 
     def execute(self, ctx):
         _handle_execution(ctx, "salt_and_pepper")
+
+
+class ComputeSaturation(foo.Operator):
+    @property
+    def config(self):
+        return _handle_config("saturation")
+
+    def resolve_delegation(self, ctx):
+        return ctx.params.get("delegate", False)
+
+    def resolve_input(self, ctx):
+        return _handle_inputs(ctx, "saturation")
+
+    def execute(self, ctx):
+        _handle_execution(ctx, "saturation")
 
 
 class ComputeVignetting(foo.Operator):
