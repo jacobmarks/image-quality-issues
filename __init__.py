@@ -284,27 +284,8 @@ def compute_patch_entropy(sample, detection):
 
 
 #### EXPOSURE ####
-
-# def compute_sample_exposure(sample):
-#     gray = _get_opencv_grayscale_image(sample)
-#     # pylint: disable=no-member
-#     histogram = cv2.calcHist([gray], [0], None, [256], [0, 256])
-#     normalized_histogram = histogram.ravel() / histogram.max()
-#     return normalized_histogram
-
-
-# def compute_dataset_exposure(dataset, view=None):
-#     dataset.add_sample_field("min_exposure", fo.FloatField)
-#     dataset.add_sample_field("max_exposure", fo.FloatField)
-#     if view is None:
-#         view = dataset
-#     for sample in view.iter_samples(autosave=True):
-#         exposure = compute_sample_exposure(sample)
-#         sample["min_exposure"] = exposure[0]
-#         sample["max_exposure"] = exposure[-1]
-
-
 def _compute_exposure(opencv_gray_img):
+    # pylint: disable=no-member
     histogram = cv2.calcHist([opencv_gray_img], [0], None, [256], [0, 256])
     normalized_histogram = histogram.ravel() / histogram.max()
     min_exposure = normalized_histogram[0]
@@ -490,27 +471,46 @@ def compute_dataset_property(property, dataset, view=None, patches_field=None):
 ################################################################
 
 
+def _handle_config(property_name):
+    _config = foo.OperatorConfig(
+        name=f"compute_{property_name}",
+        label=f"Common Issues: compute {property_name.replace('_', ' ')}",
+        dynamic=True,
+    )
+    _config.icon = "/assets/icon.svg"
+    return _config
+
+
+def _handle_inputs(ctx, property_name):
+    inputs = types.Object()
+    label = "compute " + property_name.replace("_", " ")
+    inputs.message(label, label=label)
+    _execution_mode(ctx, inputs)
+    _list_target_views(ctx, inputs)
+    _handle_patch_inputs(ctx, inputs)
+    return types.Property(inputs)
+
+
+def _handle_execution(ctx, property_name):
+    view = _get_target_view(ctx, ctx.params["target"])
+    patches_field = ctx.params.get("patches_field", None)
+    compute_dataset_property(
+        property_name, ctx.dataset, view=view, patches_field=patches_field
+    )
+    ctx.trigger("reload_dataset")
+
+
 class ComputeBrightness(foo.Operator):
     @property
     def config(self):
-        _config = foo.OperatorConfig(
-            name="compute_brightness",
-            label="Common Issues: compute brightness",
-            dynamic=True,
-        )
-        _config.icon = "/assets/icon.svg"
-        return _config
+        return _handle_config("brightness")
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
         inputs = types.Object()
-        inputs.message("compute brightness", label="compute brightness")
-        _execution_mode(ctx, inputs)
-        _list_target_views(ctx, inputs)
-        _handle_patch_inputs(ctx, inputs)
-        return types.Property(inputs)
+        return _handle_inputs(ctx, "brightness")
 
     def execute(self, ctx):
         view = _get_target_view(ctx, ctx.params["target"])
@@ -524,254 +524,121 @@ class ComputeBrightness(foo.Operator):
 class ComputeAspectRatio(foo.Operator):
     @property
     def config(self):
-        _config = foo.OperatorConfig(
-            name="compute_aspect_ratio",
-            label="Common Issues: compute aspect ratio",
-            dynamic=True,
-        )
-        _config.icon = "/assets/icon.svg"
-        return _config
+        return _handle_config("aspect_ratio")
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
-        inputs = types.Object()
-        inputs.message("compute aspect ratio", label="compute aspect ratio")
-        _execution_mode(ctx, inputs)
-        _list_target_views(ctx, inputs)
-        _handle_patch_inputs(ctx, inputs)
-        return types.Property(inputs)
+        return _handle_inputs(ctx, "aspect_ratio")
 
     def execute(self, ctx):
-        view = _get_target_view(ctx, ctx.params["target"])
-        patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_property(
-            "aspect_ratio", ctx.dataset, view=view, patches_field=patches_field
-        )
-        ctx.trigger("reload_dataset")
+        _handle_execution(ctx, "aspect_ratio")
 
 
 class ComputeBlurriness(foo.Operator):
     @property
     def config(self):
-        _config = foo.OperatorConfig(
-            name="compute_blurriness",
-            label="Common Issues: compute blurriness",
-            dynamic=True,
-        )
-        _config.icon = "/assets/icon.svg"
-        return _config
+        return _handle_config("blurriness")
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
-        inputs = types.Object()
-        inputs.message("compute blurriness", label="compute blurriness")
-        _execution_mode(ctx, inputs)
-        _list_target_views(ctx, inputs)
-        _handle_patch_inputs(ctx, inputs)
-        return types.Property(inputs)
+        return _handle_inputs(ctx, "blurriness")
 
     def execute(self, ctx):
-        view = _get_target_view(ctx, ctx.params["target"])
-        patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_property(
-            "blurriness", ctx.dataset, view=view, patches_field=patches_field
-        )
-        ctx.trigger("reload_dataset")
+        _handle_execution(ctx, "blurriness")
 
 
 class ComputeContrast(foo.Operator):
     @property
     def config(self):
-        _config = foo.OperatorConfig(
-            name="compute_contrast",
-            label="Common Issues: compute contrast",
-            dynamic=True,
-        )
-        _config.icon = "/assets/icon.svg"
-        return _config
+        return _handle_config("contrast")
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
-        inputs = types.Object()
-        inputs.message("compute contrast", label="compute contrast")
-        _execution_mode(ctx, inputs)
-        _list_target_views(ctx, inputs)
-        _handle_patch_inputs(ctx, inputs)
-        return types.Property(inputs)
+        return _handle_inputs(ctx, "contrast")
 
     def execute(self, ctx):
-        view = _get_target_view(ctx, ctx.params["target"])
-        patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_property(
-            "contrast", ctx.dataset, view=view, patches_field=patches_field
-        )
-        ctx.trigger("reload_dataset")
+        _handle_execution(ctx, "contrast")
 
 
 class ComputeSaturation(foo.Operator):
     @property
     def config(self):
-        _config = foo.OperatorConfig(
-            name="compute_saturation",
-            label="Common Issues: compute saturation",
-            dynamic=True,
-        )
-        _config.icon = "/assets/icon.svg"
-        return _config
+        return _handle_config("saturation")
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
-        inputs = types.Object()
-        inputs.message("compute saturation", label="compute saturation")
-        _execution_mode(ctx, inputs)
-        _list_target_views(ctx, inputs)
-        _handle_patch_inputs(ctx, inputs)
-        return types.Property(inputs)
+        return _handle_inputs(ctx, "saturation")
 
     def execute(self, ctx):
-        view = _get_target_view(ctx, ctx.params["target"])
-        patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_property(
-            "saturation", ctx.dataset, view=view, patches_field=patches_field
-        )
-        ctx.trigger("reload_dataset")
+        _handle_execution(ctx, "saturation")
 
 
 class ComputeEntropy(foo.Operator):
     @property
     def config(self):
-        _config = foo.OperatorConfig(
-            name="compute_entropy",
-            label="Common Issues: compute entropy",
-            dynamic=True,
-        )
-        _config.icon = "/assets/icon.svg"
-        return _config
+        return _handle_config("entropy")
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
-        inputs = types.Object()
-        inputs.message("compute entropy", label="compute entropy")
-        _execution_mode(ctx, inputs)
-        _list_target_views(ctx, inputs)
-        _handle_patch_inputs(ctx, inputs)
-        return types.Property(inputs)
+        return _handle_inputs(ctx, "entropy")
 
     def execute(self, ctx):
-        view = _get_target_view(ctx, ctx.params["target"])
-        patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_property(
-            "entropy", ctx.dataset, view=view, patches_field=patches_field
-        )
-        ctx.trigger("reload_dataset")
+        _handle_execution(ctx, "entropy")
 
 
 class ComputeExposure(foo.Operator):
     @property
     def config(self):
-        _config = foo.OperatorConfig(
-            name="compute_exposure",
-            label="Common Issues: compute exposure",
-            dynamic=True,
-        )
-        _config.icon = "/assets/icon.svg"
-        return _config
+        return _handle_config("exposure")
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
-        inputs = types.Object()
-        inputs.message("compute exposure", label="compute exposure")
-        _execution_mode(ctx, inputs)
-        _list_target_views(ctx, inputs)
-        _handle_patch_inputs(ctx, inputs)
-        return types.Property(inputs)
+        return _handle_inputs(ctx, "exposure")
 
     def execute(self, ctx):
-        view = _get_target_view(ctx, ctx.params["target"])
-        patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_property(
-            "exposure", ctx.dataset, view=view, patches_field=patches_field
-        )
-        ctx.trigger("reload_dataset")
+        _handle_execution(ctx, "exposure")
 
 
 class ComputeSaltAndPepper(foo.Operator):
     @property
     def config(self):
-        _config = foo.OperatorConfig(
-            name="compute_salt_and_pepper",
-            label="Common Issues: compute salt and pepper",
-            dynamic=True,
-        )
-        _config.icon = "/assets/icon.svg"
-        return _config
+        return _handle_config("salt_and_pepper")
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
-        inputs = types.Object()
-        inputs.message(
-            "compute salt and pepper", label="compute salt and pepper"
-        )
-        _execution_mode(ctx, inputs)
-        _list_target_views(ctx, inputs)
-        _handle_patch_inputs(ctx, inputs)
-        return types.Property(inputs)
+        return _handle_inputs(ctx, "salt_and_pepper")
 
     def execute(self, ctx):
-        view = _get_target_view(ctx, ctx.params["target"])
-        patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_property(
-            "salt_and_pepper",
-            ctx.dataset,
-            view=view,
-            patches_field=patches_field,
-        )
-        ctx.trigger("reload_dataset")
+        _handle_execution(ctx, "salt_and_pepper")
 
 
 class ComputeVignetting(foo.Operator):
     @property
     def config(self):
-        _config = foo.OperatorConfig(
-            name="compute_vignetting",
-            label="Common Issues: compute vignetting",
-            dynamic=True,
-        )
-        _config.icon = "/assets/icon.svg"
-        return _config
+        return _handle_config("vignetting")
 
     def resolve_delegation(self, ctx):
         return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
-        inputs = types.Object()
-        inputs.message("compute vignetting", label="compute vignetting")
-        _execution_mode(ctx, inputs)
-        _list_target_views(ctx, inputs)
-        _handle_patch_inputs(ctx, inputs)
-        return types.Property(inputs)
+        return _handle_inputs(ctx, "vignetting")
 
     def execute(self, ctx):
-        view = _get_target_view(ctx, ctx.params["target"])
-        patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_property(
-            "vignetting", ctx.dataset, view=view, patches_field=patches_field
-        )
-        ctx.trigger("reload_dataset")
+        _handle_execution(ctx, "vignetting")
 
 
 def _need_to_compute(dataset, field_name):
@@ -784,6 +651,8 @@ def _need_to_compute(dataset, field_name):
 def _run_computation(dataset, issue_name, patches_field=None):
     compute_dataset_property(issue_name, dataset, patches_field=patches_field)
 
+
+######## ISSUE FUNCTIONS ########
 
 ISSUE_MAPPING = {
     "bright": {
