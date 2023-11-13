@@ -19,6 +19,7 @@ With this plugin, you can find the following issues:
 
 ### Updates
 
+- **2021-11-13**: Version 2.0.1 supports [calling the compute methods from the Python SDK](#python-sdk)!
 - **2021-11-10**: Version 2.0.0 adds support for object patches, lots of refactoring, and more robustness!
 
 ## Watch On Youtube
@@ -73,6 +74,37 @@ Computes the vignetting of all images in the dataset.
 
 Finds images with brightness, aspect ratio, or entropy issues. You can specify
 the threshold for each issue type, and which issue types to check for.
+
+## Python SDK
+
+You can also use the compute operators from the Python SDK!
+
+```python
+import fiftyone as fo
+import fiftyone.operators as foo
+import fiftyone.zoo as foz
+
+dataset = fo.load_dataset("quickstart")
+
+## Access the operator via its URI (plugin name + operator name)
+compute_brightness = foo.get_operator(
+    "@jacobmarks/image_issues/compute_brightness"
+)
+
+## Compute the brightness of all images in the dataset
+compute_brightness(dataset)
+
+## Compute brightness of a view
+view = dataset.take(10)
+compute_brightness(view)
+
+## Compute brightness of detection patches
+compute_brightness(dataset, patches_field="ground_truth")
+```
+
+**Note**: The `find_issues` operator is not yet supported in the Python SDK.
+
+**Note**: You may have trouble running these within a Jupyter notebook. If so, try running them in a Python script.
 
 ## See Also
 
