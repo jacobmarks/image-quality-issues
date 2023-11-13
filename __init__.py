@@ -501,6 +501,18 @@ def _handle_execution(ctx, property_name):
     ctx.trigger("reload_dataset")
 
 
+def _handle_calling(
+    uri, sample_collection, patches_field=None, delegate=False
+):
+    ctx = dict(view=sample_collection.view())
+    params = dict(
+        target="CURRENT_VIEW",
+        patches_field=patches_field,
+        delegate=delegate,
+    )
+    return foo.execute_operator(uri, ctx, params=params)
+
+
 class ComputeAspectRatio(foo.Operator):
     @property
     def config(self):
@@ -514,6 +526,14 @@ class ComputeAspectRatio(foo.Operator):
 
     def execute(self, ctx):
         _handle_execution(ctx, "aspect_ratio")
+
+    def __call__(self, sample_collection, patches_field=None, delegate=False):
+        return _handle_calling(
+            self.uri,
+            sample_collection,
+            patches_field=patches_field,
+            delegate=delegate,
+        )
 
 
 class ComputeBlurriness(foo.Operator):
@@ -530,6 +550,14 @@ class ComputeBlurriness(foo.Operator):
     def execute(self, ctx):
         _handle_execution(ctx, "blurriness")
 
+    def __call__(self, sample_collection, patches_field=None, delegate=False):
+        return _handle_calling(
+            self.uri,
+            sample_collection,
+            patches_field=patches_field,
+            delegate=delegate,
+        )
+
 
 class ComputeBrightness(foo.Operator):
     @property
@@ -540,16 +568,18 @@ class ComputeBrightness(foo.Operator):
         return ctx.params.get("delegate", False)
 
     def resolve_input(self, ctx):
-        inputs = types.Object()
         return _handle_inputs(ctx, "brightness")
 
     def execute(self, ctx):
-        view = _get_target_view(ctx, ctx.params["target"])
-        patches_field = ctx.params.get("patches_field", None)
-        compute_dataset_property(
-            "brightness", ctx.dataset, view=view, patches_field=patches_field
+        _handle_execution(ctx, "brightness")
+
+    def __call__(self, sample_collection, patches_field=None, delegate=False):
+        return _handle_calling(
+            self.uri,
+            sample_collection,
+            patches_field=patches_field,
+            delegate=delegate,
         )
-        ctx.trigger("reload_dataset")
 
 
 class ComputeContrast(foo.Operator):
@@ -566,6 +596,14 @@ class ComputeContrast(foo.Operator):
     def execute(self, ctx):
         _handle_execution(ctx, "contrast")
 
+    def __call__(self, sample_collection, patches_field=None, delegate=False):
+        return _handle_calling(
+            self.uri,
+            sample_collection,
+            patches_field=patches_field,
+            delegate=delegate,
+        )
+
 
 class ComputeEntropy(foo.Operator):
     @property
@@ -580,6 +618,14 @@ class ComputeEntropy(foo.Operator):
 
     def execute(self, ctx):
         _handle_execution(ctx, "entropy")
+
+    def __call__(self, sample_collection, patches_field=None, delegate=False):
+        return _handle_calling(
+            self.uri,
+            sample_collection,
+            patches_field=patches_field,
+            delegate=delegate,
+        )
 
 
 class ComputeExposure(foo.Operator):
@@ -596,6 +642,14 @@ class ComputeExposure(foo.Operator):
     def execute(self, ctx):
         _handle_execution(ctx, "exposure")
 
+    def __call__(self, sample_collection, patches_field=None, delegate=False):
+        return _handle_calling(
+            self.uri,
+            sample_collection,
+            patches_field=patches_field,
+            delegate=delegate,
+        )
+
 
 class ComputeSaltAndPepper(foo.Operator):
     @property
@@ -610,6 +664,14 @@ class ComputeSaltAndPepper(foo.Operator):
 
     def execute(self, ctx):
         _handle_execution(ctx, "salt_and_pepper")
+
+    def __call__(self, sample_collection, patches_field=None, delegate=False):
+        return _handle_calling(
+            self.uri,
+            sample_collection,
+            patches_field=patches_field,
+            delegate=delegate,
+        )
 
 
 class ComputeSaturation(foo.Operator):
@@ -626,6 +688,14 @@ class ComputeSaturation(foo.Operator):
     def execute(self, ctx):
         _handle_execution(ctx, "saturation")
 
+    def __call__(self, sample_collection, patches_field=None, delegate=False):
+        return _handle_calling(
+            self.uri,
+            sample_collection,
+            patches_field=patches_field,
+            delegate=delegate,
+        )
+
 
 class ComputeVignetting(foo.Operator):
     @property
@@ -640,6 +710,14 @@ class ComputeVignetting(foo.Operator):
 
     def execute(self, ctx):
         _handle_execution(ctx, "vignetting")
+
+    def __call__(self, sample_collection, patches_field=None, delegate=False):
+        return _handle_calling(
+            self.uri,
+            sample_collection,
+            patches_field=patches_field,
+            delegate=delegate,
+        )
 
 
 def _need_to_compute(dataset, field_name, patches_field=None):
