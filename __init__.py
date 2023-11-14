@@ -215,7 +215,7 @@ def compute_patch_blurriness(sample, detection):
 #### BRIGHTNESS ####
 def _compute_brightness(pillow_img):
     pixels = np.array(pillow_img)
-    if pixels.ndim == 3:
+    if pixels.ndim == 3 and pixels.shape[-1] == 3:
         r, g, b = pixels.mean(axis=(0, 1))
     else:
         mean = pixels.mean()
