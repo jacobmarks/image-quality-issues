@@ -17,6 +17,13 @@ With this plugin, you can find the following issues:
 - 🧂 Noise: find images with high salt and pepper noise
 - 🌈 Saturation: find images with low and high saturation
 
+For any of these properties, the plugin allows you to compute with the following options:
+- In real-time, or in delegated execution mode
+- For full images, or for any object patches, specified by a `Detections` field
+- for the entire dataset, the current view, or for currently selected samples
+
+These computations are all united via a `find_issues` operator, which allows you to designate images (or detections) as plagued by specific issues. You can run the issue-finding operator in single-issue or multi-issue mode, and can specify the threshold for each issue at the time of execution. All necessary computations which have not yet been run will be run.
+
 ### Updates
 
 - **2021-11-13**: Version 2.0.1 supports [calling the compute methods from the Python SDK](#python-sdk)!
@@ -32,62 +39,71 @@ With this plugin, you can find the following issues:
 fiftyone plugins download https://github.com/jacobmarks/image-quality-issues/
 ```
 
-## Operators
 
-### `compute_aspect_ratio`
+## Properties
 
-Computes the aspect ratio of all images in the dataset.
+### Aspect Ratio
+Relatively self-explanatory, this is the raio of image (or patch) width to height. The minimum of `width/height` and `height/width` is computed.
 
+Operator: `compute_aspect_ratio`
+
+Compute aspect ratio of images:
 ![image_aspect_ratio_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/fe052278-7a64-4b39-b22f-240f0f12ed2e)
 
+Compute aspect ratio of detection patches:
 ![patch_aspect_ratio_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/549fd7d8-b338-44d8-a401-6a03fe1693db)
 
-### `compute_blurriness`
+### Blurriness
 
-Computes the blurriness of all images in the dataset.
+Blurriness measures the lack of sharpness, or clarity in the image. It encapsulates multiple sources, including motion blur, defocus blur, and low-quality imaging. You can compute blurriness with the `compute_blurriness` operator.
 
 ![blurriness_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/c6cc790c-ddcc-43d8-9a42-8b118f470b14)
 
-### `compute_brightness`
 
-Computes the brightness of all images in the dataset.
+### Brightness
+
+Brightness attempts to quantify the amount of light in an image, as it is perceived by the viewer. For RGB images, it is computed by taking a weighted average of the RGB channels for each pixel and computing a luminance score. You can run the computation with `compute_brightness`.
+
 ![brightness_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/824e1972-9878-4c0c-8ccc-5de03c0275fa)
 
-### `compute_contrast`
+This brightness score allows you to identify dark images and bright images.
 
-Computes the contrast of all images in the dataset.
+### Contrast
+
+Contrast measures the difference in brightness between the darkest and brightest parts of an image. Low contrast means high uniformity across the image. You can compute the contrast for your images or patches with `compute_contrast`.
 
 ![contrast_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/b2767143-e436-4dc2-8b30-665820a59fb3)
 
-### `compute_entropy`
+### Entropy
 
-Computes the entropy of all images in the dataset.
+Entropy quantifies the information content of the pixels in an image. The more complex the visual structure, the higher the entropy. Low entropy images typically provide little information to a model, so it may be desired to remove them from the dataset before training. Compute entropy with `compute_entropy`.
 
 ![entropy_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/4a39fda5-f233-4b16-909a-cfece9edbbf6)
 
-### `compute_exposure`
+### Exposure
 
-Computes the exposure of all images in the dataset.
+Exposure measures the amount of light per unit area reaching the image sensor or film. It is related to but distinct from brightness. Low exposure and high exposure can both be issues that plague images captured by cameras. Compute exposure with `compute_exposure`.
 
 ![exposure_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/df42beeb-e086-4ed3-9ab6-b5a2cbbcd092)
 
+### Salt 'n Pepper Noise
 
-### `compute_salt_and_pepper`
-
-Computes the salt and pepper noise of all images in the dataset.
+Salt and pepper noise is a variety of noise in images that comes in the form of black and white pixels. It can result in grainy images, or images which are hard to make accurate predictions on. Compute the salt and pepper noise with `compute_salt_and_pepper`.
 
 ![salt_and_pepper_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/2a2926b3-d784-4ec3-a961-9ef9bb624379)
 
-### `compute_saturation`
+### Saturation
 
-Computes the saturation of all images in the dataset.
+Saturation measures the intensity or purity of color in an image. Grayscale images have low saturation, whereas vivid, rich images have high saturation. Compute saturation with `compute_saturation`.
 
 ![saturation_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/90b42694-cdea-42f7-b7a0-9e6c464370ee)
 
 
-### `compute_vignetting`
+### Vignetting
 
-Computes the vignetting of all images in the dataset.
+Vignetting measures the dropoff in brightness and saturation near the periphery of an image compared to at its center. This can be an undesired consequence of camera settings. Compute vignetting with `compute_vignetting`.
+![vignetting_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/0a35c03a-db08-44c8-a51b-48a868c19d88)
+
 
 ### `find_issues`
 
