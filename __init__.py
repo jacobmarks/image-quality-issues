@@ -455,6 +455,8 @@ def compute_dataset_property(property, dataset, view=None, patches_field=None):
                 sample[property] = prop_value
     else:
         for sample in view.iter_samples(autosave=True):
+            if sample[patches_field] is None:
+                continue
             for detection in sample[patches_field].detections:
                 prop_value = PROP_PATCH_COMPUTE_FUNCTIONS[property](
                     sample, detection
