@@ -38,33 +38,52 @@ fiftyone plugins download https://github.com/jacobmarks/image-quality-issues/
 
 Computes the aspect ratio of all images in the dataset.
 
+![image_aspect_ratio_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/fe052278-7a64-4b39-b22f-240f0f12ed2e)
+
+![patch_aspect_ratio_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/549fd7d8-b338-44d8-a401-6a03fe1693db)
+
 ### `compute_blurriness`
 
 Computes the blurriness of all images in the dataset.
 
+![blurriness_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/c6cc790c-ddcc-43d8-9a42-8b118f470b14)
+
 ### `compute_brightness`
 
 Computes the brightness of all images in the dataset.
+![brightness_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/824e1972-9878-4c0c-8ccc-5de03c0275fa)
 
 ### `compute_contrast`
 
 Computes the contrast of all images in the dataset.
 
+![contrast_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/b2767143-e436-4dc2-8b30-665820a59fb3)
+
 ### `compute_entropy`
 
 Computes the entropy of all images in the dataset.
+
+![entropy_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/4a39fda5-f233-4b16-909a-cfece9edbbf6)
 
 ### `compute_exposure`
 
 Computes the exposure of all images in the dataset.
 
+![exposure_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/df42beeb-e086-4ed3-9ab6-b5a2cbbcd092)
+
+
 ### `compute_salt_and_pepper`
 
 Computes the salt and pepper noise of all images in the dataset.
 
+![salt_and_pepper_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/2a2926b3-d784-4ec3-a961-9ef9bb624379)
+
 ### `compute_saturation`
 
 Computes the saturation of all images in the dataset.
+
+![saturation_compressed](https://github.com/jacobmarks/image-quality-issues/assets/12500356/90b42694-cdea-42f7-b7a0-9e6c464370ee)
+
 
 ### `compute_vignetting`
 
