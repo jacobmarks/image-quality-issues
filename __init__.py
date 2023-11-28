@@ -446,7 +446,7 @@ def compute_dataset_property(property, dataset, view=None, patches_field=None):
         view = dataset
     if patches_field is None:
         dataset.add_sample_field(property, fo.FloatField)
-        for sample in view.iter_samples(autosave=True):
+        for sample in view.iter_samples(autosave=True, progress=True):
             prop_value = PROP_SAMPLE_COMPUTE_FUNCTIONS[property](sample)
             if property == "exposure":
                 sample["min_exposure"] = prop_value[0]
@@ -454,7 +454,7 @@ def compute_dataset_property(property, dataset, view=None, patches_field=None):
             else:
                 sample[property] = prop_value
     else:
-        for sample in view.iter_samples(autosave=True):
+        for sample in view.iter_samples(autosave=True, progress=True):
             if sample[patches_field] is None:
                 continue
             for detection in sample[patches_field].detections:
