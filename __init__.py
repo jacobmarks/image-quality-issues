@@ -308,16 +308,36 @@ def compute_patch_exposure(sample, detection):
 
 #### SALT AND PEPPER ####
 def _compute_salt_and_pepper(opencv_gray_img):
-    SALT_THRESHOLD = 245
+    SALT_THRESHOLD = 244
     PEPPER_THRESHOLD = 10
-    # Identify salt-and-pepper pixels
+
+    # Identifying salt-and-pepper pixels
     salt_pixels = opencv_gray_img >= SALT_THRESHOLD
     pepper_pixels = opencv_gray_img <= PEPPER_THRESHOLD
 
-    # Calculate the percentage of salt-and-pepper pixels
-    total_salt_pepper_pixels = np.sum(salt_pixels) + np.sum(pepper_pixels)
+    # Morphological operations to exclude larger contiguous regions
+    kernel = np.ones((2, 2), np.uint8)
+
+    # Dilate and then erode (Opening operation)
+    # pylint: disable=no-member
+    salt_opening = cv2.morphologyEx(
+        salt_pixels.astype(np.uint8), cv2.MORPH_OPEN, kernel
+    )  # pylint: disable=no-member
+    pepper_opening = cv2.morphologyEx(
+        pepper_pixels.astype(np.uint8), cv2.MORPH_OPEN, kernel
+    )
+
+    # Identify isolated salt and pepper pixels
+    salt_isolated = salt_pixels & ~salt_opening
+    pepper_isolated = pepper_pixels & ~pepper_opening
+
+    # Calculate the percentage of isolated salt-and-pepper pixels
+    total_isolated_salt_pepper_pixels = np.sum(salt_isolated) + np.sum(
+        pepper_isolated
+    )
     total_pixels = opencv_gray_img.size
-    noise_percentage = total_salt_pepper_pixels / total_pixels * 100
+    noise_percentage = total_isolated_salt_pepper_pixels / total_pixels * 100
+
     return noise_percentage
 
 
