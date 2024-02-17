@@ -96,56 +96,8 @@ def _execution_mode(ctx, inputs):
         )
 
 
-def _list_target_views(ctx, inputs):
-    has_view = ctx.view != ctx.dataset.view()
-    has_selected = bool(ctx.selected)
-    default_target = "DATASET"
-    if has_view or has_selected:
-        target_choices = types.RadioGroup()
-        target_choices.add_choice(
-            "DATASET",
-            label="Entire dataset",
-            description="Run for the entire dataset",
-        )
-
-        if has_view:
-            target_choices.add_choice(
-                "CURRENT_VIEW",
-                label="Current view",
-                description="Run for the current view",
-            )
-            default_target = "CURRENT_VIEW"
-
-        if has_selected:
-            target_choices.add_choice(
-                "SELECTED_SAMPLES",
-                label="Selected samples",
-                description="Run for the selected samples",
-            )
-            default_target = "SELECTED_SAMPLES"
-
-        inputs.enum(
-            "target",
-            target_choices.values(),
-            default=default_target,
-            view=target_choices,
-        )
-    else:
-        ctx.params["target"] = "DATASET"
-
-
-def _get_target_view(ctx, target):
-    if target == "SELECTED_SAMPLES":
-        return ctx.view.select(ctx.selected)
-
-    if target == "DATASET":
-        return ctx.dataset
-
-    return ctx.view
-
-
 def _handle_patch_inputs(ctx, inputs):
-    target_view = _get_target_view(ctx, ctx.params.get("target", None))
+    target_view = ctx.target_view()
     patch_types = (fo.Detection, fo.Detections, fo.Polyline, fo.Polylines)
     patches_fields = list(
         target_view.get_field_schema(embedded_doc_type=patch_types).keys()
@@ -509,13 +461,13 @@ def _handle_inputs(ctx, property_name):
     label = "compute " + property_name.replace("_", " ")
     inputs.message(label, label=label)
     _execution_mode(ctx, inputs)
-    _list_target_views(ctx, inputs)
+    inputs.view_target(ctx)
     _handle_patch_inputs(ctx, inputs)
     return types.Property(inputs)
 
 
 def _handle_execution(ctx, property_name):
-    view = _get_target_view(ctx, ctx.params["target"])
+    view = ctx.target_view()
     patches_field = ctx.params.get("patches_field", None)
     compute_dataset_property(
         property_name, ctx.dataset, view=view, patches_field=patches_field
@@ -964,7 +916,7 @@ class FindIssues(foo.Operator):
         _single_or_multi_mode(inputs)
 
         mode = ctx.params.get("issue_mode", "SINGLE")
-        _list_target_views(ctx, inputs)
+        inputs.view_target(ctx)
         _handle_patch_inputs(ctx, inputs)
 
         if mode == "SINGLE":
@@ -1012,7 +964,7 @@ class FindIssues(foo.Operator):
 
     def execute(self, ctx):
         single_mode = ctx.params.get("issue_mode", "SINGLE")
-        view = _get_target_view(ctx, ctx.params["target"])
+        view = ctx.target_view()
         patches_field = ctx.params.get("patches_field", None)
 
         for issue in ISSUE_MAPPING.keys():
