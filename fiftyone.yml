@@ -1,7 +1,7 @@
 fiftyone:
-  version: ">=0.23.5"
+  version: ">=0.23.7"
 name: "@jacobmarks/image_issues"
-version: "2.0.4"
+version: "2.0.5"
 description: "Find common image quality issues in your datasets"
 url: "https://github.com/jacobmarks/image-quality-issues/blob/main/README.md"
 operators:

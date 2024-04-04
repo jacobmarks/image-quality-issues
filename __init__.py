@@ -472,7 +472,7 @@ def _handle_execution(ctx, property_name):
     compute_dataset_property(
         property_name, ctx.dataset, view=view, patches_field=patches_field
     )
-    ctx.trigger("reload_dataset")
+    ctx.ops.reload_dataset()
 
 
 def _handle_calling(
@@ -984,7 +984,7 @@ class FindIssues(foo.Operator):
                     view=view,
                 )
 
-        ctx.trigger("reload_dataset")
+        ctx.ops.reload_dataset()
 
 
 def register(plugin):
