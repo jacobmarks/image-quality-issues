@@ -188,8 +188,9 @@ def _compute_brightness(pillow_img):
 
 
 def compute_sample_brightness(sample):
-    image = Image.open(get_filepath(sample))
-    return _compute_brightness(image)
+    filepath = get_filepath(sample)
+    with Image.open(filepath) as image:
+        return _compute_brightness(image)
 
 
 def compute_patch_brightness(sample, detection):
@@ -226,8 +227,9 @@ def _compute_entropy(pillow_img):
 
 
 def compute_sample_entropy(sample):
-    image = Image.open(get_filepath(sample))
-    return _compute_entropy(image)
+    filepath = get_filepath(sample)
+    with Image.open(filepath) as image:
+        return _compute_entropy(image)
 
 
 def compute_patch_entropy(sample, detection):
