@@ -26,8 +26,8 @@ These computations are all united via a `find_issues` operator, which allows you
 
 ### Updates
 
-- **2021-11-13**: Version 2.0.1 supports [calling the compute methods from the Python SDK](#python-sdk)!
-- **2021-11-10**: Version 2.0.0 adds support for object patches, lots of refactoring, and more robustness!
+- **2023-11-13**: Version 2.0.1 supports [calling the compute methods from the Python SDK](#python-sdk)!
+- **2023-11-10**: Version 2.0.0 adds support for object patches, lots of refactoring, and more robustness!
 
 ## Watch On Youtube
 
